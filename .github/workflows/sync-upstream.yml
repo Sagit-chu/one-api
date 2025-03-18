@@ -15,7 +15,7 @@ jobs:
       - name: Sync upstream pull requests
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.sync.TOKEN }}
+          github-token: ${{ secrets.TOKEN }}
           script: |
             const upstream = 'songquanpeng/one-api'; // 替换为实际的上游仓库
             const [owner, repo] = upstream.split('/');
