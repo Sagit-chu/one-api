@@ -1,11 +1,13 @@
-import { toast } from 'react-toastify';
-import { toastConstants } from '../constants';
+import {toast} from 'react-toastify';
+import {toastConstants} from '../constants';
 import React from 'react';
+import {API} from './api';
 
 const HTMLToastContent = ({ htmlContent }) => {
   return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
 };
 export default HTMLToastContent;
+
 export function isAdmin() {
   let user = localStorage.getItem('user');
   if (!user) return false;
@@ -29,7 +31,7 @@ export function getSystemName() {
 export function getLogo() {
   let logo = localStorage.getItem('logo');
   if (!logo) return '/logo.png';
-  return logo
+  return logo;
 }
 
 export function getFooterHTML() {
@@ -72,6 +74,7 @@ if (isMobile()) {
 }
 
 export function showError(error) {
+  if (!error) return;
   console.error(error);
   if (error.message) {
     if (error.name === 'AxiosError') {
@@ -156,17 +159,7 @@ export function timestamp2string(timestamp) {
     second = '0' + second;
   }
   return (
-    year +
-    '-' +
-    month +
-    '-' +
-    day +
-    ' ' +
-    hour +
-    ':' +
-    minute +
-    ':' +
-    second
+      year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second
   );
 }
 
@@ -191,9 +184,34 @@ export const verifyJSON = (str) => {
 export function shouldShowPrompt(id) {
   let prompt = localStorage.getItem(`prompt-${id}`);
   return !prompt;
-
 }
 
 export function setPromptShown(id) {
   localStorage.setItem(`prompt-${id}`, 'true');
+}
+
+let channelModels = undefined;
+export async function loadChannelModels() {
+  const res = await API.get('/api/models');
+  const { success, data } = res.data;
+  if (!success) {
+    return;
+  }
+  channelModels = data;
+  localStorage.setItem('channel_models', JSON.stringify(data));
+}
+
+export function getChannelModels(type) {
+  if (channelModels !== undefined && type in channelModels) {
+    return channelModels[type];
+  }
+  let models = localStorage.getItem('channel_models');
+  if (!models) {
+    return [];
+  }
+  channelModels = JSON.parse(models);
+  if (type in channelModels) {
+    return channelModels[type];
+  }
+  return [];
 }

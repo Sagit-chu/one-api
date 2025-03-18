@@ -1,11 +1,20 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
+	"gorm.io/gorm"
+
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/helper"
-	"gorm.io/gorm"
+)
+
+const (
+	RedemptionCodeStatusEnabled  = 1 // don't use 0, 0 is the default value!
+	RedemptionCodeStatusDisabled = 2 // also don't use 0
+	RedemptionCodeStatusUsed     = 3 // also don't use 0
 )
 
 type Redemption struct {
@@ -14,7 +23,7 @@ type Redemption struct {
 	Key          string `json:"key" gorm:"type:char(32);uniqueIndex"`
 	Status       int    `json:"status" gorm:"default:1"`
 	Name         string `json:"name" gorm:"index"`
-	Quota        int    `json:"quota" gorm:"default:100"`
+	Quota        int64  `json:"quota" gorm:"bigint;default:100"`
 	CreatedTime  int64  `json:"created_time" gorm:"bigint"`
 	RedeemedTime int64  `json:"redeemed_time" gorm:"bigint"`
 	Count        int    `json:"count" gorm:"-:all"` // only for api request
@@ -42,7 +51,7 @@ func GetRedemptionById(id int) (*Redemption, error) {
 	return &redemption, err
 }
 
-func Redeem(key string, userId int) (quota int, err error) {
+func Redeem(ctx context.Context, key string, userId int) (quota int64, err error) {
 	if key == "" {
 		return 0, errors.New("未提供兑换码")
 	}
@@ -61,7 +70,7 @@ func Redeem(key string, userId int) (quota int, err error) {
 		if err != nil {
 			return errors.New("无效的兑换码")
 		}
-		if redemption.Status != common.RedemptionCodeStatusEnabled {
+		if redemption.Status != RedemptionCodeStatusEnabled {
 			return errors.New("该兑换码已被使用")
 		}
 		err = tx.Model(&User{}).Where("id = ?", userId).Update("quota", gorm.Expr("quota + ?", redemption.Quota)).Error
@@ -69,14 +78,14 @@ func Redeem(key string, userId int) (quota int, err error) {
 			return err
 		}
 		redemption.RedeemedTime = helper.GetTimestamp()
-		redemption.Status = common.RedemptionCodeStatusUsed
+		redemption.Status = RedemptionCodeStatusUsed
 		err = tx.Save(redemption).Error
 		return err
 	})
 	if err != nil {
 		return 0, errors.New("兑换失败，" + err.Error())
 	}
-	RecordLog(userId, LogTypeTopup, fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota)))
+	RecordLog(ctx, userId, LogTypeTopup, fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota)))
 	return redemption.Quota, nil
 }
 

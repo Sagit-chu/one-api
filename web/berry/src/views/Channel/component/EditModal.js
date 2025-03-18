@@ -1,9 +1,9 @@
-import PropTypes from "prop-types";
-import { useState, useEffect } from "react";
-import { CHANNEL_OPTIONS } from "constants/ChannelConstants";
-import { useTheme } from "@mui/material/styles";
-import { API } from "utils/api";
-import { showError, showSuccess } from "utils/common";
+import PropTypes from 'prop-types';
+import { useState, useEffect } from 'react';
+import { CHANNEL_OPTIONS } from 'constants/ChannelConstants';
+import { useTheme } from '@mui/material/styles';
+import { API } from 'utils/api';
+import { showError, showSuccess, getChannelModels } from 'utils/common';
 import {
   Dialog,
   DialogTitle,
@@ -21,13 +21,14 @@ import {
   Container,
   Autocomplete,
   FormHelperText,
+  Switch,
   Checkbox
-} from "@mui/material";
+} from '@mui/material';
 
-import { Formik } from "formik";
-import * as Yup from "yup";
-import { defaultConfig, typeConfig } from "../type/Config"; //typeConfig
-import { createFilterOptions } from "@mui/material/Autocomplete";
+import { Formik } from 'formik';
+import * as Yup from 'yup';
+import { defaultConfig, typeConfig } from '../type/Config'; //typeConfig
+import { createFilterOptions } from '@mui/material/Autocomplete';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 
@@ -37,38 +38,34 @@ const checkedIcon = <CheckBoxIcon fontSize="small" />;
 const filter = createFilterOptions();
 const validationSchema = Yup.object().shape({
   is_edit: Yup.boolean(),
-  name: Yup.string().required("名称 不能为空"),
-  type: Yup.number().required("渠道 不能为空"),
-  key: Yup.string().when("is_edit", {
-    is: false,
-    then: Yup.string().required("密钥 不能为空"),
+  name: Yup.string().required('名称 不能为空'),
+  type: Yup.number().required('渠道 不能为空'),
+  key: Yup.string().when(['is_edit', 'type'], {
+    is: (is_edit, type) => !is_edit && type !== 33,
+    then: Yup.string().required('密钥 不能为空')
   }),
   other: Yup.string(),
-  models: Yup.array().min(1, "模型 不能为空"),
-  groups: Yup.array().min(1, "用户组 不能为空"),
-  base_url: Yup.string().when("type", {
+  models: Yup.array().min(1, '模型 不能为空'),
+  groups: Yup.array().min(1, '用户组 不能为空'),
+  base_url: Yup.string().when('type', {
     is: (value) => [3, 8].includes(value),
-    then: Yup.string().required("渠道API地址 不能为空"), // base_url 是必需的
-    otherwise: Yup.string(), // 在其他情况下，base_url 可以是任意字符串
+    then: Yup.string().required('渠道API地址 不能为空'), // base_url 是必需的
+    otherwise: Yup.string() // 在其他情况下，base_url 可以是任意字符串
   }),
-  model_mapping: Yup.string().test(
-    "is-json",
-    "必须是有效的JSON字符串",
-    function (value) {
-      try {
-        if (value === "" || value === null || value === undefined) {
-          return true;
-        }
-        const parsedValue = JSON.parse(value);
-        if (typeof parsedValue === "object") {
-          return true;
-        }
-      } catch (e) {
-        return false;
+  model_mapping: Yup.string().test('is-json', '必须是有效的JSON字符串', function (value) {
+    try {
+      if (value === '' || value === null || value === undefined) {
+        return true;
       }
+      const parsedValue = JSON.parse(value);
+      if (typeof parsedValue === 'object') {
+        return true;
+      }
+    } catch (e) {
       return false;
     }
-  ),
+    return false;
+  })
 });
 
 const EditModal = ({ open, channelId, onCancel, onOk }) => {
@@ -79,12 +76,14 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
   const [inputPrompt, setInputPrompt] = useState(defaultConfig.prompt);
   const [groupOptions, setGroupOptions] = useState([]);
   const [modelOptions, setModelOptions] = useState([]);
+  const [batchAdd, setBatchAdd] = useState(false);
+  const [basicModels, setBasicModels] = useState([]);
 
   const initChannel = (typeValue) => {
     if (typeConfig[typeValue]?.inputLabel) {
       setInputLabel({
         ...defaultConfig.inputLabel,
-        ...typeConfig[typeValue].inputLabel,
+        ...typeConfig[typeValue].inputLabel
       });
     } else {
       setInputLabel(defaultConfig.inputLabel);
@@ -93,7 +92,7 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
     if (typeConfig[typeValue]?.prompt) {
       setInputPrompt({
         ...defaultConfig.prompt,
-        ...typeConfig[typeValue].prompt,
+        ...typeConfig[typeValue].prompt
       });
     } else {
       setInputPrompt(defaultConfig.prompt);
@@ -102,40 +101,14 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
     return typeConfig[typeValue]?.input;
   };
   const handleTypeChange = (setFieldValue, typeValue, values) => {
-    const newInput = initChannel(typeValue);
-
-    if (newInput) {
-      Object.keys(newInput).forEach((key) => {
-        if (
-          (!Array.isArray(values[key]) &&
-            values[key] !== null &&
-            values[key] !== undefined &&
-            values[key] !== "") ||
-          (Array.isArray(values[key]) && values[key].length > 0)
-        ) {
-          return;
-        }
-
-        if (key === "models") {
-          setFieldValue(key, initialModel(newInput[key]));
-          return;
-        }
-        setFieldValue(key, newInput[key]);
-      });
+    initChannel(typeValue);
+    let localModels = getChannelModels(typeValue);
+    setBasicModels(localModels);
+    if (localModels.length > 0 && Array.isArray(values['models']) && values['models'].length == 0) {
+      setFieldValue('models', initialModel(localModels));
     }
-  };
 
-  const basicModels = (channelType) => {
-    let modelGroup =
-      typeConfig[channelType]?.modelGroup || defaultConfig.modelGroup;
-    // 循环 modelOptions，找到 modelGroup 对应的模型
-    let modelList = [];
-    modelOptions.forEach((model) => {
-      if (model.group === modelGroup) {
-        modelList.push(model);
-      }
-    });
-    return modelList;
+    setFieldValue('config', {});
   };
 
   const fetchGroups = async () => {
@@ -151,9 +124,9 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
     try {
       let res = await API.get(`/api/channel/models`);
       const { data } = res.data;
-      data.forEach(item => {
+      data.forEach((item) => {
         if (!item.owned_by) {
-          item.owned_by = "未知";
+          item.owned_by = '未知';
         }
       });
       // 先对data排序
@@ -166,10 +139,10 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
       });
 
       setModelOptions(
-         data.map((model) => {
+        data.map((model) => {
           return {
             id: model.id,
-            group: model.owned_by,
+            group: model.owned_by
           };
         })
       );
@@ -180,33 +153,43 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
 
   const submit = async (values, { setErrors, setStatus, setSubmitting }) => {
     setSubmitting(true);
-    if (values.base_url && values.base_url.endsWith("/")) {
+    if (values.base_url && values.base_url.endsWith('/')) {
       values.base_url = values.base_url.slice(0, values.base_url.length - 1);
     }
-    if (values.type === 3 && values.other === "") {
-      values.other = "2023-09-01-preview";
+    if (values.type === 3 && values.other === '') {
+      values.other = '2023-09-01-preview';
     }
-    if (values.type === 18 && values.other === "") {
-      values.other = "v2.1";
+    if (values.type === 18 && values.other === '') {
+      values.other = 'v2.1';
     }
+    if (values.key === '') {
+      if (values.config.ak && values.config.sk && values.config.region) {
+        values.key = `${values.config.ak}|${values.config.sk}|${values.config.region}`;
+      } else if (values.config.region && values.config.vertex_ai_project_id && values.config.vertex_ai_adc) {
+        values.key = `${values.config.region}|${values.config.vertex_ai_project_id}|${values.config.vertex_ai_adc}`;
+      }
+    }
+
     let res;
-    const modelsStr = values.models.map((model) => model.id).join(",");
-    values.group = values.groups.join(",");
+    const modelsStr = values.models.map((model) => model.id).join(',');
+    const configStr = JSON.stringify(values.config);
+    values.group = values.groups.join(',');
     if (channelId) {
       res = await API.put(`/api/channel/`, {
         ...values,
         id: parseInt(channelId),
         models: modelsStr,
+        config: configStr
       });
     } else {
-      res = await API.post(`/api/channel/`, { ...values, models: modelsStr });
+      res = await API.post(`/api/channel/`, { ...values, models: modelsStr, config: configStr });
     }
     const { success, message } = res.data;
     if (success) {
       if (channelId) {
-        showSuccess("渠道更新成功！");
+        showSuccess('渠道更新成功！');
       } else {
-        showSuccess("渠道创建成功！");
+        showSuccess('渠道创建成功！');
       }
       setSubmitting(false);
       setStatus({ success: true });
@@ -224,15 +207,15 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
     }
 
     // 如果 channelModel 是一个字符串
-    if (typeof channelModel === "string") {
-      channelModel = channelModel.split(",");
+    if (typeof channelModel === 'string') {
+      channelModel = channelModel.split(',');
     }
     let modelList = channelModel.map((model) => {
       const modelOption = modelOptions.find((option) => option.id === model);
       if (modelOption) {
         return modelOption;
       }
-      return { id: model, group: "自定义：点击或回车输入" };
+      return { id: model, group: '自定义：点击或回车输入' };
     });
     return modelList;
   }
@@ -241,23 +224,23 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
     let res = await API.get(`/api/channel/${channelId}`);
     const { success, message, data } = res.data;
     if (success) {
-      if (data.models === "") {
+      if (data.models === '') {
         data.models = [];
       } else {
         data.models = initialModel(data.models);
       }
-      if (data.group === "") {
+      if (data.group === '') {
         data.groups = [];
       } else {
-        data.groups = data.group.split(",");
+        data.groups = data.group.split(',');
       }
-      if (data.model_mapping !== "") {
-        data.model_mapping = JSON.stringify(
-          JSON.parse(data.model_mapping),
-          null,
-          2
-        );
+      if (data.model_mapping !== '') {
+        data.model_mapping = JSON.stringify(JSON.parse(data.model_mapping), null, 2);
       }
+      if (data.config !== '') {
+        data.config = JSON.parse(data.config);
+      }
+
       data.base_url = data.base_url ?? '';
       data.is_edit = true;
       initChannel(data.type);
@@ -273,6 +256,7 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
   }, []);
 
   useEffect(() => {
+    setBatchAdd(false);
     if (channelId) {
       loadChannel().then();
     } else {
@@ -283,45 +267,25 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
   }, [channelId]);
 
   return (
-    <Dialog open={open} onClose={onCancel} fullWidth maxWidth={"md"}>
+    <Dialog open={open} onClose={onCancel} fullWidth maxWidth={'md'}>
       <DialogTitle
         sx={{
-          margin: "0px",
+          margin: '0px',
           fontWeight: 700,
-          lineHeight: "1.55556",
-          padding: "24px",
-          fontSize: "1.125rem",
+          lineHeight: '1.55556',
+          padding: '24px',
+          fontSize: '1.125rem'
         }}
       >
-        {channelId ? "编辑渠道" : "新建渠道"}
+        {channelId ? '编辑渠道' : '新建渠道'}
       </DialogTitle>
       <Divider />
       <DialogContent>
-        <Formik
-          initialValues={initialInput}
-          enableReinitialize
-          validationSchema={validationSchema}
-          onSubmit={submit}
-        >
-          {({
-            errors,
-            handleBlur,
-            handleChange,
-            handleSubmit,
-            isSubmitting,
-            touched,
-            values,
-            setFieldValue,
-          }) => (
+        <Formik initialValues={initialInput} enableReinitialize validationSchema={validationSchema} onSubmit={submit}>
+          {({ errors, handleBlur, handleChange, handleSubmit, isSubmitting, touched, values, setFieldValue }) => (
             <form noValidate onSubmit={handleSubmit}>
-              <FormControl
-                fullWidth
-                error={Boolean(touched.type && errors.type)}
-                sx={{ ...theme.typography.otherInput }}
-              >
-                <InputLabel htmlFor="channel-type-label">
-                  {inputLabel.type}
-                </InputLabel>
+              <FormControl fullWidth error={Boolean(touched.type && errors.type)} sx={{ ...theme.typography.otherInput }}>
+                <InputLabel htmlFor="channel-type-label">{inputLabel.type}</InputLabel>
                 <Select
                   id="channel-type-label"
                   label={inputLabel.type}
@@ -335,39 +299,34 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                   MenuProps={{
                     PaperProps: {
                       style: {
-                        maxHeight: 200,
-                      },
-                    },
+                        maxHeight: 200
+                      }
+                    }
                   }}
                 >
-                  {Object.values(CHANNEL_OPTIONS).map((option) => {
-                    return (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.text}
-                      </MenuItem>
-                    );
-                  })}
+                  {Object.values(CHANNEL_OPTIONS)
+                    .sort((a, b) => {
+                      return a.text.localeCompare(b.text);
+                    })
+                    .map((option) => {
+                      return (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.text}
+                        </MenuItem>
+                      );
+                    })}
                 </Select>
                 {touched.type && errors.type ? (
                   <FormHelperText error id="helper-tex-channel-type-label">
                     {errors.type}
                   </FormHelperText>
                 ) : (
-                  <FormHelperText id="helper-tex-channel-type-label">
-                    {" "}
-                    {inputPrompt.type}{" "}
-                  </FormHelperText>
+                  <FormHelperText id="helper-tex-channel-type-label"> {inputPrompt.type} </FormHelperText>
                 )}
               </FormControl>
 
-              <FormControl
-                fullWidth
-                error={Boolean(touched.name && errors.name)}
-                sx={{ ...theme.typography.otherInput }}
-              >
-                <InputLabel htmlFor="channel-name-label">
-                  {inputLabel.name}
-                </InputLabel>
+              <FormControl fullWidth error={Boolean(touched.name && errors.name)} sx={{ ...theme.typography.otherInput }}>
+                <InputLabel htmlFor="channel-name-label">{inputLabel.name}</InputLabel>
                 <OutlinedInput
                   id="channel-name-label"
                   label={inputLabel.name}
@@ -376,7 +335,7 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                   name="name"
                   onBlur={handleBlur}
                   onChange={handleChange}
-                  inputProps={{ autoComplete: "name" }}
+                  inputProps={{ autoComplete: 'name' }}
                   aria-describedby="helper-text-channel-name-label"
                 />
                 {touched.name && errors.name ? (
@@ -384,21 +343,12 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                     {errors.name}
                   </FormHelperText>
                 ) : (
-                  <FormHelperText id="helper-tex-channel-name-label">
-                    {" "}
-                    {inputPrompt.name}{" "}
-                  </FormHelperText>
+                  <FormHelperText id="helper-tex-channel-name-label"> {inputPrompt.name} </FormHelperText>
                 )}
               </FormControl>
 
-              <FormControl
-                fullWidth
-                error={Boolean(touched.base_url && errors.base_url)}
-                sx={{ ...theme.typography.otherInput }}
-              >
-                <InputLabel htmlFor="channel-base_url-label">
-                  {inputLabel.base_url}
-                </InputLabel>
+              <FormControl fullWidth error={Boolean(touched.base_url && errors.base_url)} sx={{ ...theme.typography.otherInput }}>
+                <InputLabel htmlFor="channel-base_url-label">{inputLabel.base_url}</InputLabel>
                 <OutlinedInput
                   id="channel-base_url-label"
                   label={inputLabel.base_url}
@@ -415,22 +365,13 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                     {errors.base_url}
                   </FormHelperText>
                 ) : (
-                  <FormHelperText id="helper-tex-channel-base_url-label">
-                    {" "}
-                    {inputPrompt.base_url}{" "}
-                  </FormHelperText>
+                  <FormHelperText id="helper-tex-channel-base_url-label"> {inputPrompt.base_url} </FormHelperText>
                 )}
               </FormControl>
 
               {inputPrompt.other && (
-                <FormControl
-                  fullWidth
-                  error={Boolean(touched.other && errors.other)}
-                  sx={{ ...theme.typography.otherInput }}
-                >
-                  <InputLabel htmlFor="channel-other-label">
-                    {inputLabel.other}
-                  </InputLabel>
+                <FormControl fullWidth error={Boolean(touched.other && errors.other)} sx={{ ...theme.typography.otherInput }}>
+                  <InputLabel htmlFor="channel-other-label">{inputLabel.other}</InputLabel>
                   <OutlinedInput
                     id="channel-other-label"
                     label={inputLabel.other}
@@ -447,10 +388,7 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                       {errors.other}
                     </FormHelperText>
                   ) : (
-                    <FormHelperText id="helper-tex-channel-other-label">
-                      {" "}
-                      {inputPrompt.other}{" "}
-                    </FormHelperText>
+                    <FormHelperText id="helper-tex-channel-other-label"> {inputPrompt.other} </FormHelperText>
                   )}
                 </FormControl>
               )}
@@ -464,22 +402,15 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                   onChange={(e, value) => {
                     const event = {
                       target: {
-                        name: "groups",
-                        value: value,
-                      },
+                        name: 'groups',
+                        value: value
+                      }
                     };
                     handleChange(event);
                   }}
                   onBlur={handleBlur}
                   filterSelectedOptions
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      name="groups"
-                      error={Boolean(errors.groups)}
-                      label={inputLabel.groups}
-                    />
-                  )}
+                  renderInput={(params) => <TextField {...params} name="groups" error={Boolean(errors.groups)} label={inputLabel.groups} />}
                   aria-describedby="helper-text-channel-groups-label"
                 />
                 {errors.groups ? (
@@ -487,10 +418,7 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                     {errors.groups}
                   </FormHelperText>
                 ) : (
-                  <FormHelperText id="helper-tex-channel-groups-label">
-                    {" "}
-                    {inputPrompt.groups}{" "}
-                  </FormHelperText>
+                  <FormHelperText id="helper-tex-channel-groups-label"> {inputPrompt.groups} </FormHelperText>
                 )}
               </FormControl>
 
@@ -504,30 +432,19 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                   onChange={(e, value) => {
                     const event = {
                       target: {
-                        name: "models",
-                        value: value.map((item) =>
-                          typeof item === "string"
-                            ? { id: item, group: "自定义：点击或回车输入" }
-                            : item
-                        ),
-                      },
+                        name: 'models',
+                        value: value.map((item) => (typeof item === 'string' ? { id: item, group: '自定义：点击或回车输入' } : item))
+                      }
                     };
                     handleChange(event);
                   }}
                   onBlur={handleBlur}
                   // filterSelectedOptions
                   disableCloseOnSelect
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      name="models"
-                      error={Boolean(errors.models)}
-                      label={inputLabel.models}
-                    />
-                  )}
+                  renderInput={(params) => <TextField {...params} name="models" error={Boolean(errors.models)} label={inputLabel.models} />}
                   groupBy={(option) => option.group}
                   getOptionLabel={(option) => {
-                    if (typeof option === "string") {
+                    if (typeof option === 'string') {
                       return option;
                     }
                     if (option.inputValue) {
@@ -538,13 +455,11 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                   filterOptions={(options, params) => {
                     const filtered = filter(options, params);
                     const { inputValue } = params;
-                    const isExisting = options.some(
-                      (option) => inputValue === option.id
-                    );
-                    if (inputValue !== "" && !isExisting) {
+                    const isExisting = options.some((option) => inputValue === option.id);
+                    if (inputValue !== '' && !isExisting) {
                       filtered.push({
                         id: inputValue,
-                        group: "自定义：点击或回车输入",
+                        group: '自定义：点击或回车输入'
                       });
                     }
                     return filtered;
@@ -561,72 +476,104 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                     {errors.models}
                   </FormHelperText>
                 ) : (
-                  <FormHelperText id="helper-tex-channel-models-label">
-                    {" "}
-                    {inputPrompt.models}{" "}
-                  </FormHelperText>
+                  <FormHelperText id="helper-tex-channel-models-label"> {inputPrompt.models} </FormHelperText>
                 )}
               </FormControl>
               <Container
                 sx={{
-                  textAlign: "right",
+                  textAlign: 'right'
                 }}
               >
-                <ButtonGroup
-                  variant="outlined"
-                  aria-label="small outlined primary button group"
-                >
+                <ButtonGroup variant="outlined" aria-label="small outlined primary button group">
                   <Button
                     onClick={() => {
-                      setFieldValue("models", basicModels(values.type));
+                      setFieldValue('models', initialModel(basicModels));
                     }}
                   >
-                    填入渠道支持模型
+                    填入相关模型
                   </Button>
                   <Button
                     onClick={() => {
-                      setFieldValue("models", modelOptions);
+                      setFieldValue('models', modelOptions);
                     }}
                   >
                     填入所有模型
                   </Button>
                 </ButtonGroup>
               </Container>
-              <FormControl
-                fullWidth
-                error={Boolean(touched.key && errors.key)}
-                sx={{ ...theme.typography.otherInput }}
-              >
-                <InputLabel htmlFor="channel-key-label">
-                  {inputLabel.key}
-                </InputLabel>
-                <OutlinedInput
-                  id="channel-key-label"
-                  label={inputLabel.key}
-                  type="text"
-                  value={values.key}
-                  name="key"
-                  onBlur={handleBlur}
-                  onChange={handleChange}
-                  inputProps={{}}
-                  aria-describedby="helper-text-channel-key-label"
-                />
-                {touched.key && errors.key ? (
-                  <FormHelperText error id="helper-tex-channel-key-label">
-                    {errors.key}
-                  </FormHelperText>
-                ) : (
-                  <FormHelperText id="helper-tex-channel-key-label">
-                    {" "}
-                    {inputPrompt.key}{" "}
-                  </FormHelperText>
-                )}
-              </FormControl>
-              <FormControl
-                fullWidth
-                error={Boolean(touched.model_mapping && errors.model_mapping)}
-                sx={{ ...theme.typography.otherInput }}
-              >
+              {inputLabel.key && (
+                <>
+                  <FormControl fullWidth error={Boolean(touched.key && errors.key)} sx={{ ...theme.typography.otherInput }}>
+                    {!batchAdd ? (
+                      <>
+                        <InputLabel htmlFor="channel-key-label">{inputLabel.key}</InputLabel>
+                        <OutlinedInput
+                          id="channel-key-label"
+                          label={inputLabel.key}
+                          type="text"
+                          value={values.key}
+                          name="key"
+                          onBlur={handleBlur}
+                          onChange={handleChange}
+                          inputProps={{}}
+                          aria-describedby="helper-text-channel-key-label"
+                        />
+                      </>
+                    ) : (
+                      <TextField
+                        multiline
+                        id="channel-key-label"
+                        label={inputLabel.key}
+                        value={values.key}
+                        name="key"
+                        onBlur={handleBlur}
+                        onChange={handleChange}
+                        aria-describedby="helper-text-channel-key-label"
+                        minRows={5}
+                        placeholder={inputPrompt.key + '，一行一个密钥'}
+                      />
+                    )}
+
+                    {touched.key && errors.key ? (
+                      <FormHelperText error id="helper-tex-channel-key-label">
+                        {errors.key}
+                      </FormHelperText>
+                    ) : (
+                      <FormHelperText id="helper-tex-channel-key-label"> {inputPrompt.key} </FormHelperText>
+                    )}
+                  </FormControl>
+                  {channelId === 0 && (
+                    <Container
+                      sx={{
+                        textAlign: 'right'
+                      }}
+                    >
+                      <Switch checked={batchAdd} onChange={(e) => setBatchAdd(e.target.checked)} />
+                      批量添加
+                    </Container>
+                  )}
+                </>
+              )}
+
+              {inputLabel.config &&
+                Object.keys(inputLabel.config).map((configName) => {
+                  return (
+                    <FormControl key={'config.' + configName} fullWidth sx={{ ...theme.typography.otherInput }}>
+                      <TextField
+                        multiline
+                        key={'config.' + configName}
+                        name={'config.' + configName}
+                        value={values.config?.[configName] || ''}
+                        label={configName}
+                        placeholder={inputPrompt.config[configName]}
+                        onChange={handleChange}
+                      />
+                      <FormHelperText id={`helper-tex-config.${configName}-label`}> {inputPrompt.config[configName]} </FormHelperText>
+                    </FormControl>
+                  );
+                })}
+
+              <FormControl fullWidth error={Boolean(touched.model_mapping && errors.model_mapping)} sx={{ ...theme.typography.otherInput }}>
                 {/* <InputLabel htmlFor="channel-model_mapping-label">{inputLabel.model_mapping}</InputLabel> */}
                 <TextField
                   multiline
@@ -641,28 +588,38 @@ const EditModal = ({ open, channelId, onCancel, onOk }) => {
                   placeholder={inputPrompt.model_mapping}
                 />
                 {touched.model_mapping && errors.model_mapping ? (
-                  <FormHelperText
-                    error
-                    id="helper-tex-channel-model_mapping-label"
-                  >
+                  <FormHelperText error id="helper-tex-channel-model_mapping-label">
                     {errors.model_mapping}
                   </FormHelperText>
                 ) : (
-                  <FormHelperText id="helper-tex-channel-model_mapping-label">
-                    {" "}
-                    {inputPrompt.model_mapping}{" "}
+                  <FormHelperText id="helper-tex-channel-model_mapping-label"> {inputPrompt.model_mapping} </FormHelperText>
+                )}
+              </FormControl>
+              <FormControl fullWidth error={Boolean(touched.system_prompt && errors.system_prompt)} sx={{ ...theme.typography.otherInput }}>
+                {/* <InputLabel htmlFor="channel-model_mapping-label">{inputLabel.model_mapping}</InputLabel> */}
+                <TextField
+                  multiline
+                  id="channel-system_prompt-label"
+                  label={inputLabel.system_prompt}
+                  value={values.system_prompt}
+                  name="system_prompt"
+                  onBlur={handleBlur}
+                  onChange={handleChange}
+                  aria-describedby="helper-text-channel-system_prompt-label"
+                  minRows={5}
+                  placeholder={inputPrompt.system_prompt}
+                />
+                {touched.system_prompt && errors.system_prompt ? (
+                  <FormHelperText error id="helper-tex-channel-system_prompt-label">
+                    {errors.system_prompt}
                   </FormHelperText>
+                ) : (
+                  <FormHelperText id="helper-tex-channel-system_prompt-label"> {inputPrompt.system_prompt} </FormHelperText>
                 )}
               </FormControl>
               <DialogActions>
                 <Button onClick={onCancel}>取消</Button>
-                <Button
-                  disableElevation
-                  disabled={isSubmitting}
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                >
+                <Button disableElevation disabled={isSubmitting} type="submit" variant="contained" color="primary">
                   提交
                 </Button>
               </DialogActions>
@@ -680,5 +637,5 @@ EditModal.propTypes = {
   open: PropTypes.bool,
   channelId: PropTypes.number,
   onCancel: PropTypes.func,
-  onOk: PropTypes.func,
+  onOk: PropTypes.func
 };

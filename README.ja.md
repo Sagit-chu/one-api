@@ -52,8 +52,6 @@ _✨ 標準的な OpenAI API フォーマットを通じてすべての LLM に�
 
 > **警告**: この README は ChatGPT によって翻訳されています。翻訳ミスを発見した場合は遠慮なく PR を投稿してください。
 
-> **警告**： 英語版の Docker イメージは `justsong/one-api-en` です。
-
 > **注**: Docker からプルされた最新のイメージは、`alpha` リリースかもしれません。安定性が必要な場合は、手動でバージョンを指定してください。
 
 ## 特徴
@@ -89,7 +87,9 @@ _✨ 標準的な OpenAI API フォーマットを通じてすべての LLM に�
 
 ## デプロイメント
 ### Docker デプロイメント
-デプロイコマンド: `docker run --name one-api -d --restart always -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/one-api:/data justsong/one-api-en`。
+
+デプロイコマンド:
+`docker run --name one-api -d --restart always -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/one-api:/data justsong/one-api`。
 
 コマンドを更新する: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrr/watchtower -cR`。
 
@@ -242,17 +242,18 @@ graph LR
     + 例: `SESSION_SECRET=random_string`
 3. `SQL_DSN`: 設定すると、SQLite の代わりに指定したデータベースが使用されます。MySQL バージョン 8.0 を使用してください。
     + 例: `SQL_DSN=root:123456@tcp(localhost:3306)/oneapi`
-4. `FRONTEND_BASE_URL`: 設定されると、バックエンドアドレスではなく、指定されたフロントエンドアドレスが使われる。
+4. `LOG_SQL_DSN`: を設定すると、`logs`テーブルには独立したデータベースが使用されます。MySQLまたはPostgreSQLを使用してください。
+5. `FRONTEND_BASE_URL`: 設定されると、バックエンドアドレスではなく、指定されたフロントエンドアドレスが使われる。
     + 例: `FRONTEND_BASE_URL=https://openai.justsong.cn`
-5. `SYNC_FREQUENCY`: 設定された場合、システムは定期的にデータベースからコンフィグを秒単位で同期する。設定されていない場合、同期は行われません。
+6. `SYNC_FREQUENCY`: 設定された場合、システムは定期的にデータベースからコンフィグを秒単位で同期する。設定されていない場合、同期は行われません。
     + 例: `SYNC_FREQUENCY=60`
-6. `NODE_TYPE`: 設定すると、ノードのタイプを指定する。有効な値は `master` と `slave` である。設定されていない場合、デフォルトは `master`。
+7. `NODE_TYPE`: 設定すると、ノードのタイプを指定する。有効な値は `master` と `slave` である。設定されていない場合、デフォルトは `master`。
     + 例: `NODE_TYPE=slave`
-7. `CHANNEL_UPDATE_FREQUENCY`: 設定すると、チャンネル残高を分単位で定期的に更新する。設定されていない場合、更新は行われません。
+8. `CHANNEL_UPDATE_FREQUENCY`: 設定すると、チャンネル残高を分単位で定期的に更新する。設定されていない場合、更新は行われません。
     + 例: `CHANNEL_UPDATE_FREQUENCY=1440`
-8. `CHANNEL_TEST_FREQUENCY`: 設定すると、チャンネルを定期的にテストする。設定されていない場合、テストは行われません。
+9. `CHANNEL_TEST_FREQUENCY`: 設定すると、チャンネルを定期的にテストする。設定されていない場合、テストは行われません。
     + 例: `CHANNEL_TEST_FREQUENCY=1440`
-9. `POLLING_INTERVAL`: チャネル残高の更新とチャネルの可用性をテストするときのリクエスト間の時間間隔 (秒)。デフォルトは間隔なし。
+10. `POLLING_INTERVAL`: チャネル残高の更新とチャネルの可用性をテストするときのリクエスト間の時間間隔 (秒)。デフォルトは間隔なし。
     + 例: `POLLING_INTERVAL=5`
 
 ### コマンドラインパラメータ
@@ -286,8 +287,8 @@ graph LR
     + インターフェイスアドレスと API Key が正しいか再確認してください。
 
 ## 関連プロジェクト
-[FastGPT](https://github.com/labring/FastGPT): LLM に基づく知識質問応答システム
-
+* [FastGPT](https://github.com/labring/FastGPT): LLM に基づく知識質問応答システム
+* [CherryStudio](https://github.com/CherryHQ/cherry-studio):  マルチプラットフォーム対応のAIクライアント。複数のサービスプロバイダーを統合管理し、ローカル知識ベースをサポートします。
 ## 注
 本プロジェクトはオープンソースプロジェクトです。OpenAI の[利用規約](https://openai.com/policies/terms-of-use)および**適用される法令**を遵守してご利用ください。違法な目的での利用はご遠慮ください。
 

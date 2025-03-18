@@ -4,22 +4,27 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/songquanpeng/one-api/common"
-	"github.com/songquanpeng/one-api/common/logger"
-	"github.com/songquanpeng/one-api/relay/channel/openai"
-	"github.com/songquanpeng/one-api/relay/constant"
-	"github.com/songquanpeng/one-api/relay/helper"
-	"github.com/songquanpeng/one-api/relay/model"
-	"github.com/songquanpeng/one-api/relay/util"
 	"io"
 	"net/http"
-	"strings"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/logger"
+	"github.com/songquanpeng/one-api/relay"
+	"github.com/songquanpeng/one-api/relay/adaptor"
+	"github.com/songquanpeng/one-api/relay/adaptor/openai"
+	"github.com/songquanpeng/one-api/relay/apitype"
+	"github.com/songquanpeng/one-api/relay/billing"
+	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
+	"github.com/songquanpeng/one-api/relay/channeltype"
+	"github.com/songquanpeng/one-api/relay/meta"
+	"github.com/songquanpeng/one-api/relay/model"
 )
 
 func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	ctx := c.Request.Context()
-	meta := util.GetRelayMeta(c)
+	meta := meta.GetByContext(c)
 	// get & validate textRequest
 	textRequest, err := getAndValidateTextRequest(c, meta.Mode)
 	if err != nil {
@@ -28,14 +33,19 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	}
 	meta.IsStream = textRequest.Stream
 
+	if reqBody, ok := c.Get(ctxkey.KeyRequestBody); ok {
+		logger.Debugf(c.Request.Context(), "get text request: %s\n", string(reqBody.([]byte)))
+	}
+
 	// map model name
-	var isModelMapped bool
 	meta.OriginModelName = textRequest.Model
-	textRequest.Model, isModelMapped = util.GetMappedModelName(textRequest.Model, meta.ModelMapping)
+	textRequest.Model, _ = getMappedModelName(textRequest.Model, meta.ModelMapping)
 	meta.ActualModelName = textRequest.Model
+	// set system prompt if not empty
+	systemPromptReset := setSystemPrompt(ctx, textRequest, meta.ForcedSystemPrompt)
 	// get model ratio & group ratio
-	modelRatio := common.GetModelRatio(textRequest.Model)
-	groupRatio := common.GetGroupRatio(meta.Group)
+	modelRatio := billingratio.GetModelRatio(textRequest.Model, meta.ChannelType)
+	groupRatio := billingratio.GetGroupRatio(meta.Group)
 	ratio := modelRatio * groupRatio
 	// pre-consume quota
 	promptTokens := getPromptTokens(textRequest, meta.Mode)
@@ -46,35 +56,16 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return bizErr
 	}
 
-	adaptor := helper.GetAdaptor(meta.APIType)
+	adaptor := relay.GetAdaptor(meta.APIType)
 	if adaptor == nil {
 		return openai.ErrorWrapper(fmt.Errorf("invalid api type: %d", meta.APIType), "invalid_api_type", http.StatusBadRequest)
 	}
+	adaptor.Init(meta)
 
 	// get request body
-	var requestBody io.Reader
-	if meta.APIType == constant.APITypeOpenAI {
-		// no need to convert request for openai
-		shouldResetRequestBody := isModelMapped || meta.ChannelType == common.ChannelTypeBaichuan // frequency_penalty 0 is not acceptable for baichuan
-		if shouldResetRequestBody {
-			jsonStr, err := json.Marshal(textRequest)
-			if err != nil {
-				return openai.ErrorWrapper(err, "json_marshal_failed", http.StatusInternalServerError)
-			}
-			requestBody = bytes.NewBuffer(jsonStr)
-		} else {
-			requestBody = c.Request.Body
-		}
-	} else {
-		convertedRequest, err := adaptor.ConvertRequest(c, meta.Mode, textRequest)
-		if err != nil {
-			return openai.ErrorWrapper(err, "convert_request_failed", http.StatusInternalServerError)
-		}
-		jsonData, err := json.Marshal(convertedRequest)
-		if err != nil {
-			return openai.ErrorWrapper(err, "json_marshal_failed", http.StatusInternalServerError)
-		}
-		requestBody = bytes.NewBuffer(jsonData)
+	requestBody, err := getRequestBody(c, meta, textRequest, adaptor)
+	if err != nil {
+		return openai.ErrorWrapper(err, "convert_request_failed", http.StatusInternalServerError)
 	}
 
 	// do request
@@ -83,20 +74,46 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		logger.Errorf(ctx, "DoRequest failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
-	meta.IsStream = meta.IsStream || strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream")
-	if resp.StatusCode != http.StatusOK {
-		util.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId)
-		return util.RelayErrorHandler(resp)
+	if isErrorHappened(meta, resp) {
+		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId)
+		return RelayErrorHandler(resp)
 	}
 
 	// do response
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
-		util.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId)
+		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId)
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, textRequest, ratio, preConsumedQuota, modelRatio, groupRatio)
+	go postConsumeQuota(ctx, usage, meta, textRequest, ratio, preConsumedQuota, modelRatio, groupRatio, systemPromptReset)
 	return nil
+}
+
+func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralOpenAIRequest, adaptor adaptor.Adaptor) (io.Reader, error) {
+	if !config.EnforceIncludeUsage &&
+		meta.APIType == apitype.OpenAI &&
+		meta.OriginModelName == meta.ActualModelName &&
+		meta.ChannelType != channeltype.Baichuan &&
+		meta.ForcedSystemPrompt == "" {
+		// no need to convert request for openai
+		return c.Request.Body, nil
+	}
+
+	// get request body
+	var requestBody io.Reader
+	convertedRequest, err := adaptor.ConvertRequest(c, meta.Mode, textRequest)
+	if err != nil {
+		logger.Debugf(c.Request.Context(), "converted request failed: %s\n", err.Error())
+		return nil, err
+	}
+	jsonData, err := json.Marshal(convertedRequest)
+	if err != nil {
+		logger.Debugf(c.Request.Context(), "converted request json_marshal_failed: %s\n", err.Error())
+		return nil, err
+	}
+	logger.Debugf(c.Request.Context(), "converted request: \n%s", string(jsonData))
+	requestBody = bytes.NewBuffer(jsonData)
+	return requestBody, nil
 }

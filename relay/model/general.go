@@ -1,29 +1,88 @@
 package model
 
+import "github.com/songquanpeng/one-api/relay/adaptor/openrouter"
+
 type ResponseFormat struct {
-	Type string `json:"type,omitempty"`
+	Type       string      `json:"type,omitempty"`
+	JsonSchema *JSONSchema `json:"json_schema,omitempty"`
+}
+
+type JSONSchema struct {
+	Description string                 `json:"description,omitempty"`
+	Name        string                 `json:"name"`
+	Schema      map[string]interface{} `json:"schema,omitempty"`
+	Strict      *bool                  `json:"strict,omitempty"`
+}
+
+type Audio struct {
+	Voice  string `json:"voice,omitempty"`
+	Format string `json:"format,omitempty"`
+}
+
+type StreamOptions struct {
+	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
 type GeneralOpenAIRequest struct {
-	Model            string          `json:"model,omitempty"`
-	Messages         []Message       `json:"messages,omitempty"`
-	Prompt           any             `json:"prompt,omitempty"`
-	Stream           bool            `json:"stream,omitempty"`
-	MaxTokens        int             `json:"max_tokens,omitempty"`
-	Temperature      float64         `json:"temperature,omitempty"`
-	TopP             float64         `json:"top_p,omitempty"`
-	N                int             `json:"n,omitempty"`
-	Input            any             `json:"input,omitempty"`
-	Instruction      string          `json:"instruction,omitempty"`
-	Size             string          `json:"size,omitempty"`
-	Functions        any             `json:"functions,omitempty"`
-	FrequencyPenalty float64         `json:"frequency_penalty,omitempty"`
-	PresencePenalty  float64         `json:"presence_penalty,omitempty"`
-	ResponseFormat   *ResponseFormat `json:"response_format,omitempty"`
-	Seed             float64         `json:"seed,omitempty"`
-	Tools            any             `json:"tools,omitempty"`
-	ToolChoice       any             `json:"tool_choice,omitempty"`
-	User             string          `json:"user,omitempty"`
+	// https://platform.openai.com/docs/api-reference/chat/create
+	Messages            []Message       `json:"messages,omitempty"`
+	Model               string          `json:"model,omitempty"`
+	Store               *bool           `json:"store,omitempty"`
+	ReasoningEffort     *string         `json:"reasoning_effort,omitempty"`
+	Metadata            any             `json:"metadata,omitempty"`
+	FrequencyPenalty    *float64        `json:"frequency_penalty,omitempty"`
+	LogitBias           any             `json:"logit_bias,omitempty"`
+	Logprobs            *bool           `json:"logprobs,omitempty"`
+	TopLogprobs         *int            `json:"top_logprobs,omitempty"`
+	MaxTokens           int             `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *int            `json:"max_completion_tokens,omitempty"`
+	N                   int             `json:"n,omitempty"`
+	Modalities          []string        `json:"modalities,omitempty"`
+	Prediction          any             `json:"prediction,omitempty"`
+	Audio               *Audio          `json:"audio,omitempty"`
+	PresencePenalty     *float64        `json:"presence_penalty,omitempty"`
+	ResponseFormat      *ResponseFormat `json:"response_format,omitempty"`
+	Seed                float64         `json:"seed,omitempty"`
+	ServiceTier         *string         `json:"service_tier,omitempty"`
+	Stop                any             `json:"stop,omitempty"`
+	Stream              bool            `json:"stream,omitempty"`
+	StreamOptions       *StreamOptions  `json:"stream_options,omitempty"`
+	Temperature         *float64        `json:"temperature,omitempty"`
+	TopP                *float64        `json:"top_p,omitempty"`
+	TopK                int             `json:"top_k,omitempty"`
+	Tools               []Tool          `json:"tools,omitempty"`
+	ToolChoice          any             `json:"tool_choice,omitempty"`
+	ParallelTooCalls    *bool           `json:"parallel_tool_calls,omitempty"`
+	User                string          `json:"user,omitempty"`
+	FunctionCall        any             `json:"function_call,omitempty"`
+	Functions           any             `json:"functions,omitempty"`
+	// https://platform.openai.com/docs/api-reference/embeddings/create
+	Input          any    `json:"input,omitempty"`
+	EncodingFormat string `json:"encoding_format,omitempty"`
+	Dimensions     int    `json:"dimensions,omitempty"`
+	// https://platform.openai.com/docs/api-reference/images/create
+	Prompt  string  `json:"prompt,omitempty"`
+	Quality *string `json:"quality,omitempty"`
+	Size    string  `json:"size,omitempty"`
+	Style   *string `json:"style,omitempty"`
+	// Others
+	Instruction string `json:"instruction,omitempty"`
+	NumCtx      int    `json:"num_ctx,omitempty"`
+	// -------------------------------------
+	// Openrouter
+	// -------------------------------------
+	Provider         *openrouter.RequestProvider `json:"provider,omitempty"`
+	IncludeReasoning *bool                       `json:"include_reasoning,omitempty"`
+	// -------------------------------------
+	// Anthropic
+	// -------------------------------------
+	Thinking *Thinking `json:"thinking,omitempty"`
+}
+
+// https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#implementing-extended-thinking
+type Thinking struct {
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens" binding:"omitempty,min=1024"`
 }
 
 func (r GeneralOpenAIRequest) ParseInput() []string {

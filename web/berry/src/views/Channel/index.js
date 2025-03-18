@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { showError, showSuccess, showInfo } from 'utils/common';
+import { showError, showSuccess, showInfo, loadChannelModels } from 'utils/common';
 
 import { useTheme } from '@mui/material/styles';
 import Table from '@mui/material/Table';
@@ -8,7 +8,6 @@ import TableContainer from '@mui/material/TableContainer';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import TablePagination from '@mui/material/TablePagination';
 import LinearProgress from '@mui/material/LinearProgress';
-import Alert from '@mui/material/Alert';
 import ButtonGroup from '@mui/material/ButtonGroup';
 import Toolbar from '@mui/material/Toolbar';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -135,7 +134,7 @@ export default function ChannelPage() {
     const res = await API.get(`/api/channel/test`);
     const { success, message } = res.data;
     if (success) {
-      showInfo('已成功开始测试所有通道，请刷新页面查看结果。');
+      showInfo('已成功开始测试所有渠道，请刷新页面查看结果。');
     } else {
       showError(message);
     }
@@ -159,7 +158,7 @@ export default function ChannelPage() {
     const res = await API.get(`/api/channel/update_balance`);
     const { success, message } = res.data;
     if (success) {
-      showInfo('已更新完毕所有已启用通道余额！');
+      showInfo('已更新完毕所有已启用渠道余额！');
     } else {
       showError(message);
     }
@@ -189,24 +188,19 @@ export default function ChannelPage() {
       .catch((reason) => {
         showError(reason);
       });
+    loadChannelModels().then();
   }, []);
 
   return (
     <>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2.5}>
         <Typography variant="h4">渠道</Typography>
-
         <Button variant="contained" color="primary" startIcon={<IconPlus />} onClick={() => handleOpenModal(0)}>
           新建渠道
         </Button>
       </Stack>
-      <Stack mb={5}>
-        <Alert severity="info">
-          OpenAI 渠道已经不再支持通过 key 获取余额，因此余额显示为 0。对于支持的渠道类型，请点击余额进行刷新。
-        </Alert>
-      </Stack>
       <Card>
-        <Box component="form" onSubmit={searchChannels} noValidate>
+        <Box component="form" onSubmit={searchChannels} noValidate sx={{ marginTop: 2 }}>
           <TableToolBar filterName={searchKeyword} handleFilterName={handleSearchKeyword} placeholder={'搜索渠道的 ID，名称和密钥 ...'} />
         </Box>
         <Toolbar
@@ -220,7 +214,7 @@ export default function ChannelPage() {
         >
           <Container>
             {matchUpMd ? (
-              <ButtonGroup variant="outlined" aria-label="outlined small primary button group">
+              <ButtonGroup variant="outlined" aria-label="outlined small primary button group" sx={{ marginBottom: 2 }}>
                 <Button onClick={handleRefresh} startIcon={<IconRefresh width={'18px'} />}>
                   刷新
                 </Button>
