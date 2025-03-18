@@ -11,6 +11,7 @@ jobs:
     permissions: # 添加必要的权限
       pull-requests: write
       contents: write
+      workflows: write  # 添加 workflows 权限
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -44,7 +45,7 @@ jobs:
                 page++;
               }
               return allPulls;
-            }
+             }
             
             // 获取所有PR
             const pulls = await getAllPRs();
