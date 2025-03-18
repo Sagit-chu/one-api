@@ -8,6 +8,9 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions: # 添加必要的权限
+      pull-requests: write
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -15,7 +18,8 @@ jobs:
       - name: Sync upstream pull requests
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}  # 使用默认的 GITHUB_TOKEN
+          # 或者使用您的自定义 token: ${{ secrets.YOUR_PAT }}
           script: |
             const upstream = 'songquanpeng/one-api'; // 替换为实际的上游仓库
             const [owner, repo] = upstream.split('/');
