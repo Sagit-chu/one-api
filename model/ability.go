@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"gorm.io/gorm"
-
+	"github.com/pkg/errors"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/utils"
+	"gorm.io/gorm"
 )
 
 type Ability struct {
@@ -109,4 +109,35 @@ func GetGroupModels(ctx context.Context, group string) ([]string, error) {
 	}
 	sort.Strings(models)
 	return models, err
+}
+
+type EnabledAbility struct {
+	Model       string `json:"model" gorm:"model"`
+	ChannelType int    `json:"channel_type" gorm:"channel_type"`
+}
+
+// GetGroupModelsV2 returns all enabled models for this group with their channel names.
+func GetGroupModelsV2(ctx context.Context, group string) ([]EnabledAbility, error) {
+	// prepare query based on database type
+	groupCol := "`group`"
+	trueVal := "1"
+	if common.UsingPostgreSQL {
+		groupCol = `"group"`
+		trueVal = "true"
+	}
+
+	// query with JOIN to get model and channel name in a single query
+	var models []EnabledAbility
+	query := DB.Model(&Ability{}).
+		Select("abilities.model AS model, channels.type AS channel_type").
+		Joins("JOIN channels ON abilities.channel_id = channels.id").
+		Where("abilities."+groupCol+" = ? AND abilities.enabled = "+trueVal, group).
+		Order("abilities.priority DESC")
+
+	err := query.Find(&models).Error
+	if err != nil {
+		return nil, errors.Wrap(err, "get group models")
+	}
+
+	return models, nil
 }

@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
-	"strings"
 )
 
 func abortWithMessage(c *gin.Context, statusCode int, message string) {
@@ -18,6 +19,18 @@ func abortWithMessage(c *gin.Context, statusCode int, message string) {
 	})
 	c.Abort()
 	logger.Error(c.Request.Context(), message)
+}
+
+// AbortWithError aborts the request with an error message
+func AbortWithError(c *gin.Context, statusCode int, err error) {
+	logger.Errorf(c, "server abort: %+v", err)
+	c.JSON(statusCode, gin.H{
+		"error": gin.H{
+			"message": helper.MessageWithRequestId(err.Error(), c.GetString(helper.RequestIdKey)),
+			"type":    "one_api_error",
+		},
+	})
+	c.Abort()
 }
 
 func getRequestModel(c *gin.Context) (string, error) {

@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
+	"github.com/pkg/errors"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
@@ -29,16 +29,16 @@ func Distribute() func(c *gin.Context) {
 		if ok {
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
-				abortWithMessage(c, http.StatusBadRequest, "无效的渠道 Id")
+				AbortWithError(c, http.StatusBadRequest, errors.New("无效的渠道 Id"))
 				return
 			}
 			channel, err = model.GetChannelById(id, true)
 			if err != nil {
-				abortWithMessage(c, http.StatusBadRequest, "无效的渠道 Id")
+				AbortWithError(c, http.StatusBadRequest, errors.New("无效的渠道 Id"))
 				return
 			}
 			if channel.Status != model.ChannelStatusEnabled {
-				abortWithMessage(c, http.StatusForbidden, "该渠道已被禁用")
+				AbortWithError(c, http.StatusForbidden, errors.New("该渠道已被禁用"))
 				return
 			}
 		} else {
@@ -51,7 +51,7 @@ func Distribute() func(c *gin.Context) {
 					logger.SysError(fmt.Sprintf("渠道不存在：%d", channel.Id))
 					message = "数据库一致性已被破坏，请联系管理员"
 				}
-				abortWithMessage(c, http.StatusServiceUnavailable, message)
+				AbortWithError(c, http.StatusServiceUnavailable, errors.New(message))
 				return
 			}
 		}
