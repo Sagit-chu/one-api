@@ -17,7 +17,7 @@ jobs:
         with:
           github-token: ${{ secrets.sync.TOKEN }}
           script: |
-            const upstream = 'upstream-owner/upstream-repo'; // 替换为实际的上游仓库
+            const upstream = 'songquanpeng/one-api'; // 替换为实际的上游仓库
             const [owner, repo] = upstream.split('/');
             
             // 获取上游仓库的PR
