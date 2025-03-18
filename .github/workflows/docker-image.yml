@@ -55,7 +55,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            ${{ contains(github.ref, 'alpha') && 'Sagit-chu/one-api-alpha' || 'Sagit-chu/one-api' }}
+            ${{ contains(github.ref, 'alpha') && 'sagitchu/one-api-alpha' || 'sagitchu/one-api' }}
             ${{ contains(github.ref, 'alpha') && format('ghcr.io/{0}-alpha', github.repository) || format('ghcr.io/{0}', github.repository) }}
 
       - name: Build and push Docker images
