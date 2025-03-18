@@ -66,7 +66,7 @@ jobs:
               # 创建PR
               pr_body_with_ref="此PR是从上游仓库自动同步的 #$pr_number: $pr_title
 
-原始PR: https://github.com/$UPSTREAM_REPO/pull/$pr_number
+Original PR: https://github.com/$UPSTREAM_REPO/pull/$pr_number
 
 ---
 
