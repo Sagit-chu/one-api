@@ -61,7 +61,7 @@ type GeneralOpenAIRequest struct {
 	EncodingFormat string `json:"encoding_format,omitempty"`
 	Dimensions     int    `json:"dimensions,omitempty"`
 	// https://platform.openai.com/docs/api-reference/images/create
-	Prompt  string  `json:"prompt,omitempty"`
+	Prompt  any     `json:"prompt,omitempty"`
 	Quality *string `json:"quality,omitempty"`
 	Size    string  `json:"size,omitempty"`
 	Style   *string `json:"style,omitempty"`
