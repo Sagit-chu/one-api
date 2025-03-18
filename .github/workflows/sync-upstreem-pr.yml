@@ -62,22 +62,13 @@ jobs:
               
               # 推送到本地仓库
               git push origin $pr_branch -f
-              
-              # 创建PR
-              pr_body_with_ref="此PR是从上游仓库自动同步的 #$pr_number: $pr_title
 
-Original PR: https://github.com/$UPSTREAM_REPO/pull/$pr_number
-
----
-
-$pr_body"
-              
+              # 使用单行描述创建PR
               gh pr create \
                 --title "[Upstream PR #$pr_number] $pr_title" \
-                --body "$pr_body_with_ref" \
+                --body "Auto-synced from https://github.com/$UPSTREAM_REPO/pull/$pr_number" \
                 --base $pr_base \
                 --head $pr_branch
-              
+            
               git checkout main
-            fi
-          done
+            done
