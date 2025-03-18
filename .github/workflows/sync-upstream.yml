@@ -1,0 +1,74 @@
+name: Sync Upstream PRs
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时运行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions: # 添加必要的权限
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 获取完整历史
+          
+      - name: Sync upstream pull requests
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const upstream = 'songquanpeng/one-api';
+            const [owner, repo] = upstream.split('/');
+            
+            // 获取上游仓库的PR
+            const pulls = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open'
+            });
+            
+            // 为每个PR创建或更新对应的PR
+            for (const pull of pulls.data) {
+              try {
+                const branchName = `upstream-pr-${pull.number}`;
+                
+                // 获取PR详细信息
+                const prDetails = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pull.number
+                });
+                
+                // 创建新分支
+                await exec.exec('git', ['fetch', `https://github.com/${owner}/${repo}.git`, `pull/${pull.number}/head:${branchName}`]);
+                
+                // 检查是否已存在相同的PR
+                const existingPulls = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  head: `${context.repo.owner}:${branchName}`,
+                });
+                
+                if (existingPulls.data.length === 0) {
+                  // 推送分支
+                  await exec.exec('git', ['push', 'origin', branchName]);
+                  
+                  // 创建新的PR
+                  await github.rest.pulls.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: `[Upstream] ${pull.title}`,
+                    body: `Synced from upstream PR: ${pull.html_url}\n\n${pull.body || ''}`,
+                    head: branchName,
+                    base: 'main'  // 根据实际情况修改目标分支
+                  });
+                }
+              } catch (error) {
+                console.log(`Error processing PR #${pull.number}: ${error.message}`);
+              }
+            }
