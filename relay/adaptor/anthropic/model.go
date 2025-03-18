@@ -1,5 +1,7 @@
 package anthropic
 
+import "github.com/songquanpeng/one-api/relay/model"
+
 // https://docs.anthropic.com/claude/reference/messages_post
 
 type Metadata struct {
@@ -22,6 +24,9 @@ type Content struct {
 	Input     any    `json:"input,omitempty"`
 	Content   string `json:"content,omitempty"`
 	ToolUseId string `json:"tool_use_id,omitempty"`
+	// https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#implementing-extended-thinking
+	Thinking  *string `json:"thinking,omitempty"`
+	Signature *string `json:"signature,omitempty"`
 }
 
 type Message struct {
@@ -54,6 +59,7 @@ type Request struct {
 	Tools         []Tool    `json:"tools,omitempty"`
 	ToolChoice    any       `json:"tool_choice,omitempty"`
 	//Metadata    `json:"metadata,omitempty"`
+	Thinking *model.Thinking `json:"thinking,omitempty"`
 }
 
 type Usage struct {
@@ -84,6 +90,8 @@ type Delta struct {
 	PartialJson  string  `json:"partial_json,omitempty"`
 	StopReason   *string `json:"stop_reason"`
 	StopSequence *string `json:"stop_sequence"`
+	Thinking     *string `json:"thinking,omitempty"`
+	Signature    *string `json:"signature,omitempty"`
 }
 
 type StreamResponse struct {
