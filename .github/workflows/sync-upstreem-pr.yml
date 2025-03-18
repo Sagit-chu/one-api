@@ -24,7 +24,7 @@ jobs:
       - name: Sync Upstream PRs
         env:
         #   GITHUB_TOKEN: ${{ secrets.TOKEN }}
-          GH_TOKEN: ${{ secrets.TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           UPSTREAM_REPO: ${{ secrets.UPSTREAM_REPO }} # 例如 'original-owner/original-repo'
           UPSTREAM_OWNER: ${{ secrets.UPSTREAM_OWNER }} # 例如 'original-owner'
           UPSTREAM_REPO_NAME: ${{ secrets.UPSTREAM_REPO_NAME }} # 例如 'original-repo'
