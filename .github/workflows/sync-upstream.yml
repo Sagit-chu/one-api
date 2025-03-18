@@ -25,15 +25,33 @@ jobs:
             const upstream = 'songquanpeng/one-api';
             const [owner, repo] = upstream.split('/');
             
-            // 获取上游仓库的PR
-            const pulls = await github.rest.pulls.list({
-              owner,
-              repo,
-              state: 'open'
-            });
+            // 使用分页获取所有上游仓库的PR
+            async function getAllPRs() {
+              let page = 1;
+              let allPulls = [];
+              while (true) {
+                const pulls = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: 'open',
+                  per_page: 100,  // 每页获取最大数量
+                  page: page
+                 });
+                
+                if (pulls.data.length === 0) break;
+                
+                allPulls = allPulls.concat(pulls.data);
+                page++;
+              }
+              return allPulls;
+            }
+            
+            // 获取所有PR
+            const pulls = await getAllPRs();
+            console.log(`Found ${pulls.length} open PRs in upstream repository`);
             
             // 为每个PR创建或更新对应的PR
-            for (const pull of pulls.data) {
+            for (const pull of pulls) {
               try {
                 const branchName = `upstream-pr-${pull.number}`;
                 
