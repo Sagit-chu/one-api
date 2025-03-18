@@ -1,0 +1,54 @@
+name: Sync Upstream PRs
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时运行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Sync upstream pull requests
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.sync.TOKEN }}
+          script: |
+            const upstream = 'upstream-owner/upstream-repo'; // 替换为实际的上游仓库
+            const [owner, repo] = upstream.split('/');
+            
+            // 获取上游仓库的PR
+            const pulls = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open'
+            });
+            
+            // 为每个PR创建或更新对应的PR
+            for (const pull of pulls.data) {
+              try {
+                // 检查是否已存在相同的PR
+                const existingPulls = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  head: `${owner}:${pull.head.ref}`,
+                });
+                
+                if (existingPulls.data.length === 0) {
+                  // 创建新的PR
+                  await github.rest.pulls.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: `[Upstream] ${pull.title}`,
+                    body: `Synced from upstream PR: ${pull.html_url}\n\n${pull.body || ''}`,
+                    head: `${owner}:${pull.head.ref}`,
+                    base: pull.base.ref,
+                  });
+                }
+              } catch (error) {
+                console.log(`Error processing PR #${pull.number}: ${error.message}`);
+              }
+            }
