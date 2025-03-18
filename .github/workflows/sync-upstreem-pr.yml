@@ -1,0 +1,83 @@
+name: Sync Upstream PRs
+
+on:
+  # 每6小时运行一次
+  schedule:
+    - cron: '0 */6 * * *'
+  # 也可以手动触发
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+      
+      - name: Sync Upstream PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          UPSTREAM_REPO: ${{ secrets.UPSTREAM_REPO }} # 例如 'original-owner/original-repo'
+          UPSTREAM_OWNER: ${{ secrets.UPSTREAM_OWNER }} # 例如 'original-owner'
+          UPSTREAM_REPO_NAME: ${{ secrets.UPSTREAM_REPO_NAME }} # 例如 'original-repo'
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          # 获取上游仓库的PR列表
+          upstream_prs=$(gh api repos/$UPSTREAM_REPO/pulls -q '.[] | {number: .number, title: .title, head: .head.ref, base: .base.ref, state: .state, draft: .draft} | select(.state == "open" and .draft == false)')
+          
+          # 获取本仓库的PR列表
+          local_prs=$(gh api repos/$GITHUB_REPOSITORY/pulls -q '.[] | {number: .number, title: .title}')
+          
+          # 处理每个上游PR
+          echo "$upstream_prs" | jq -c '.' | while read -r pr; do
+            pr_number=$(echo $pr | jq -r '.number')
+            pr_title=$(echo $pr | jq -r '.title')
+            pr_head=$(echo $pr | jq -r '.head')
+            pr_base=$(echo $pr | jq -r '.base')
+            
+            # 检查本地是否已经有这个PR
+            if ! echo "$local_prs" | jq -e --arg title "[Upstream PR #$pr_number] $pr_title" '.title == $title' > /dev/null; then
+              echo "同步上游PR #$pr_number: $pr_title"
+              
+              # 获取PR的详细信息
+              pr_details=$(gh api repos/$UPSTREAM_REPO/pulls/$pr_number)
+              pr_body=$(echo "$pr_details" | jq -r '.body')
+              pr_branch="upstream-pr-$pr_number"
+              
+              # 创建本地分支
+              git fetch --all
+              git checkout -b $pr_branch
+              
+              # 从上游仓库拉取PR
+              git fetch https://github.com/$UPSTREAM_REPO.git pull/$pr_number/head:$pr_branch
+              git checkout $pr_branch
+              
+              # 推送到本地仓库
+              git push origin $pr_branch -f
+              
+              # 创建PR
+              pr_body_with_ref="此PR是从上游仓库自动同步的 #$pr_number: $pr_title
+
+原始PR: https://github.com/$UPSTREAM_REPO/pull/$pr_number
+
+---
+
+$pr_body"
+              
+              gh pr create \
+                --title "[Upstream PR #$pr_number] $pr_title" \
+                --body "$pr_body_with_ref" \
+                --base $pr_base \
+                --head $pr_branch
+              
+              git checkout main
+            fi
+          done
