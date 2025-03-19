@@ -75,9 +75,21 @@ jobs:
         if: env.has_conflicts == 'true'
         run: |
           if [ -n "$(git status --porcelain)" ]; then
+            # 先获取远程分支的最新状态
+            git fetch origin pr-branch
+            # 使用 rebase 策略合并远程更改
+            git pull --rebase origin pr-branch || {
+              echo "Rebase failed, trying to resolve conflicts..."
+              git rebase --abort
+              # 如果 rebase 失败，尝试使用 merge 策略
+              git pull origin pr-branch
+            }
+            
             git add .
             git commit -m "Auto-resolved merge conflicts using AI"
-            if ! git push origin HEAD:pr-branch; then
+            
+            # 使用 force-with-lease 安全地强制推送
+            if ! git push --force-with-lease origin HEAD:pr-branch; then
               echo "Failed to push changes"
               exit 1
             fi
