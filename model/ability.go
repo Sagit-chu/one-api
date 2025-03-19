@@ -1,8 +1,14 @@
 package model
 
 import (
-	"one-api/common"
+	"context"
+	"sort"
 	"strings"
+
+	"gorm.io/gorm"
+
+	"github.com/songquanpeng/one-api/common"
+	"github.com/songquanpeng/one-api/common/utils"
 )
 
 type Ability struct {
@@ -10,15 +16,30 @@ type Ability struct {
 	Model     string `json:"model" gorm:"primaryKey;autoIncrement:false"`
 	ChannelId int    `json:"channel_id" gorm:"primaryKey;autoIncrement:false;index"`
 	Enabled   bool   `json:"enabled"`
+	Priority  *int64 `json:"priority" gorm:"bigint;default:0;index"`
 }
 
-func GetRandomSatisfiedChannel(group string, model string) (*Channel, error) {
+func GetRandomSatisfiedChannel(group string, model string, ignoreFirstPriority bool) (*Channel, error) {
 	ability := Ability{}
+	groupCol := "`group`"
+	trueVal := "1"
+	if common.UsingPostgreSQL {
+		groupCol = `"group"`
+		trueVal = "true"
+	}
+
 	var err error = nil
-	if common.UsingSQLite {
-		err = DB.Where("`group` = ? and model = ? and enabled = 1", group, model).Order("RANDOM()").Limit(1).First(&ability).Error
+	var channelQuery *gorm.DB
+	if ignoreFirstPriority {
+		channelQuery = DB.Where(groupCol+" = ? and model = ? and enabled = "+trueVal, group, model)
 	} else {
-		err = DB.Where("`group` = ? and model = ? and enabled = 1", group, model).Order("RAND()").Limit(1).First(&ability).Error
+		maxPrioritySubQuery := DB.Model(&Ability{}).Select("MAX(priority)").Where(groupCol+" = ? and model = ? and enabled = "+trueVal, group, model)
+		channelQuery = DB.Where(groupCol+" = ? and model = ? and enabled = "+trueVal+" and priority = (?)", group, model, maxPrioritySubQuery)
+	}
+	if common.UsingSQLite || common.UsingPostgreSQL {
+		err = channelQuery.Order("RANDOM()").First(&ability).Error
+	} else {
+		err = channelQuery.Order("RAND()").First(&ability).Error
 	}
 	if err != nil {
 		return nil, err
@@ -31,6 +52,7 @@ func GetRandomSatisfiedChannel(group string, model string) (*Channel, error) {
 
 func (channel *Channel) AddAbilities() error {
 	models_ := strings.Split(channel.Models, ",")
+	models_ = utils.DeDuplication(models_)
 	groups_ := strings.Split(channel.Group, ",")
 	abilities := make([]Ability, 0, len(models_))
 	for _, model := range models_ {
@@ -39,7 +61,8 @@ func (channel *Channel) AddAbilities() error {
 				Group:     group,
 				Model:     model,
 				ChannelId: channel.Id,
-				Enabled:   channel.Status == common.ChannelStatusEnabled,
+				Enabled:   channel.Status == ChannelStatusEnabled,
+				Priority:  channel.Priority,
 			}
 			abilities = append(abilities, ability)
 		}
@@ -70,4 +93,20 @@ func (channel *Channel) UpdateAbilities() error {
 
 func UpdateAbilityStatus(channelId int, status bool) error {
 	return DB.Model(&Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error
+}
+
+func GetGroupModels(ctx context.Context, group string) ([]string, error) {
+	groupCol := "`group`"
+	trueVal := "1"
+	if common.UsingPostgreSQL {
+		groupCol = `"group"`
+		trueVal = "true"
+	}
+	var models []string
+	err := DB.Model(&Ability{}).Distinct("model").Where(groupCol+" = ? and enabled = "+trueVal, group).Pluck("model", &models).Error
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(models)
+	return models, err
 }
