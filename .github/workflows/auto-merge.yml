@@ -1,0 +1,77 @@
+name: Auto Resolve Merge Conflicts
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull Request Number"
+        required: true
+        type: number
+
+jobs:
+  resolve-conflicts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config --global user.email "bot@github.com"
+          git config --global user.name "MergeBot"
+          git fetch origin pull/${{ inputs.pr_number }}/head:pr-branch
+          git checkout pr-branch
+          git fetch origin $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+          
+          if ! git merge --no-commit --no-ff origin/$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'); then
+            echo "has_conflicts=true" >> $GITHUB_ENV
+          else
+            echo "has_conflicts=false" >> $GITHUB_ENV
+          fi
+
+      - name: Check for Conflicts
+        if: env.has_conflicts == 'true'
+        run: |
+          git diff --name-only --diff-filter=U > conflict_files.txt
+          echo "Found conflicting files:"
+          cat conflict_files.txt
+
+      - name: Setup Python
+        if: env.has_conflicts == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Resolve Conflicts with AI
+        if: env.has_conflicts == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: |
+          pip install openai
+          if [ ! -f ".github/scripts/resolve_conflicts.py" ]; then
+            echo "Error: resolve_conflicts.py script not found"
+            exit 1
+          fi
+          python3 .github/scripts/resolve_conflicts.py
+        
+      - name: Commit and Push if Changes Exist
+        if: env.has_conflicts == 'true'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "Auto-resolved merge conflicts using AI"
+            if ! git push origin HEAD:pr-branch; then
+              echo "Failed to push changes"
+              exit 1
+            fi
+          else
+            echo "No changes to commit"
+          fi
