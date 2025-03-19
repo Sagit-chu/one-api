@@ -2,9 +2,12 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/helper"
+	"github.com/songquanpeng/one-api/common/random"
+	"github.com/songquanpeng/one-api/model"
 	"net/http"
-	"one-api/common"
-	"one-api/model"
 	"strconv"
 )
 
@@ -13,7 +16,7 @@ func GetAllRedemptions(c *gin.Context) {
 	if p < 0 {
 		p = 0
 	}
-	redemptions, err := model.GetAllRedemptions(p*common.ItemsPerPage, common.ItemsPerPage)
+	redemptions, err := model.GetAllRedemptions(p*config.ItemsPerPage, config.ItemsPerPage)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -105,12 +108,12 @@ func AddRedemption(c *gin.Context) {
 	}
 	var keys []string
 	for i := 0; i < redemption.Count; i++ {
-		key := common.GetUUID()
+		key := random.GetUUID()
 		cleanRedemption := model.Redemption{
-			UserId:      c.GetInt("id"),
+			UserId:      c.GetInt(ctxkey.Id),
 			Name:        redemption.Name,
 			Key:         key,
-			CreatedTime: common.GetTimestamp(),
+			CreatedTime: helper.GetTimestamp(),
 			Quota:       redemption.Quota,
 		}
 		err = cleanRedemption.Insert()

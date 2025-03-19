@@ -1,3 +1,4 @@
+```javascript
 import React, { useEffect, useState } from 'react';
 import { Button, Form, Header, Message, Segment } from 'semantic-ui-react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,12 +19,15 @@ const EditToken = () => {
   const [inputs, setInputs] = useState(originInputs);
   const { name, remain_quota, expired_time, unlimited_quota } = inputs;
   const navigate = useNavigate();
+
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   };
+
   const handleCancel = () => {
     navigate("/token");
-  }
+  };
+
   const setExpiredTime = (month, day, hour, minute) => {
     let now = new Date();
     let timestamp = now.getTime() / 1000;
@@ -56,6 +60,7 @@ const EditToken = () => {
     }
     setLoading(false);
   };
+
   useEffect(() => {
     if (isEdit) {
       loadToken().then();
@@ -162,3 +167,4 @@ const EditToken = () => {
 };
 
 export default EditToken;
+```
