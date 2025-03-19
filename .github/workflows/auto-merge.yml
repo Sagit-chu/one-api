@@ -40,7 +40,14 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-        run: python3 .github/scripts/resolve_conflicts.py
+        run: |
+          if [ ! -f ".github/scripts/resolve_conflicts.py" ]; then
+            echo "Error: resolve_conflicts.py script not found."
+            ls -l .github/scripts
+            exit 1
+          fi
+          pip install openai
+          python3 .github/scripts/resolve_conflicts.py
 
       - name: Commit and Push if Changes Exist
         if: env.has_conflicts == 'true'
