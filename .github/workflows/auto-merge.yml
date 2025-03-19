@@ -20,14 +20,23 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Setup Git
         run: |
           git config --global user.email "bot@github.com"
           git config --global user.name "MergeBot"
-          git fetch origin pull/${{ inputs.pr_number }}/head:pr-branch
-          git checkout pr-branch
+          # 获取PR的源分支信息
+          PR_DATA=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}")
+          HEAD_REPO=$(echo $PR_DATA | jq -r .head.repo.full_name)
+          HEAD_REF=$(echo $PR_DATA | jq -r .head.ref)
+          echo "head_branch=${HEAD_REF}" >> $GITHUB_ENV
+          echo "head_repo=${HEAD_REPO}" >> $GITHUB_ENV
+          
+          # 直接检出PR的源分支
+          git fetch origin pull/${{ inputs.pr_number }}/head:${HEAD_REF}
+          git checkout ${HEAD_REF}
           git fetch origin $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
           
           if ! git merge --no-commit --no-ff origin/$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'); then
@@ -66,7 +75,7 @@ jobs:
         if: env.has_conflicts == 'true'
         id: pr_info
         run: |
-          PR_DATA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          PR_DATA=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}")
           echo "base_branch=$(echo $PR_DATA | jq -r .base.ref)" >> $GITHUB_OUTPUT
           echo "base_sha=$(echo $PR_DATA | jq -r .base.sha)" >> $GITHUB_OUTPUT
@@ -75,37 +84,14 @@ jobs:
         if: env.has_conflicts == 'true'
         run: |
           if [ -n "$(git status --porcelain)" ]; then
-            # 先清理当前工作区
             git add .
             git commit -m "Auto-resolved merge conflicts using AI"
             
-            # 确保我们有最新的远程分支状态
-            git fetch origin pr-branch
-            
-            # 创建临时分支以保存我们的更改
-            current_sha=$(git rev-parse HEAD)
-            git branch tmp-resolved $current_sha
-            
-            # 重置到远程分支的最新状态
-            git reset --hard origin/pr-branch
-            
-            # 合并我们的更改
-            if ! git merge tmp-resolved -m "Merge AI resolved conflicts"; then
-              echo "Failed to merge changes"
-              git merge --abort
-              git branch -D tmp-resolved
-              exit 1
-            fi
-            
-            # 推送更改
-            if ! git push origin HEAD:pr-branch; then
+            # 直接推送到PR的源分支
+            if ! git push origin HEAD:${{ env.head_branch }}; then
               echo "Failed to push changes"
-              git branch -D tmp-resolved
               exit 1
             fi
-            
-            # 清理临时分支
-            git branch -D tmp-resolved
           else
             echo "No changes to commit"
           fi
@@ -114,7 +100,7 @@ jobs:
         if: env.has_conflicts == 'true'
         run: |
           PR_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/merge"
-          curl -X PUT -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          curl -X PUT -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             --data "{\"merge_method\": \"merge\"}" \
             $PR_URL || echo "Merge attempt failed - manual review may be needed"
