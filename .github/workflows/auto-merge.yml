@@ -61,6 +61,15 @@ jobs:
             exit 1
           fi
           python3 .github/scripts/resolve_conflicts.py
+
+      - name: Get PR Information
+        if: env.has_conflicts == 'true'
+        id: pr_info
+        run: |
+          PR_DATA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}")
+          echo "base_branch=$(echo $PR_DATA | jq -r .base.ref)" >> $GITHUB_OUTPUT
+          echo "base_sha=$(echo $PR_DATA | jq -r .base.sha)" >> $GITHUB_OUTPUT
         
       - name: Commit and Push if Changes Exist
         if: env.has_conflicts == 'true'
@@ -75,3 +84,12 @@ jobs:
           else
             echo "No changes to commit"
           fi
+
+      - name: Try to Merge PR
+        if: env.has_conflicts == 'true'
+        run: |
+          PR_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/merge"
+          curl -X PUT -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            --data "{\"merge_method\": \"merge\"}" \
+            $PR_URL || echo "Merge attempt failed - manual review may be needed"
