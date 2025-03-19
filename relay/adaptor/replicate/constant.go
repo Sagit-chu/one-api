@@ -33,9 +33,16 @@ var ModelList = []string{
 	// -------------------------------------
 	// language model
 	// -------------------------------------
+	"anthropic/claude-3.5-haiku",
+	"anthropic/claude-3.5-sonnet",
+	"anthropic/claude-3.7-sonnet",
+	"deepseek-ai/deepseek-r1",
 	"ibm-granite/granite-20b-code-instruct-8k",
 	"ibm-granite/granite-3.0-2b-instruct",
 	"ibm-granite/granite-3.0-8b-instruct",
+	"ibm-granite/granite-3.1-2b-instruct",
+	"ibm-granite/granite-3.1-8b-instruct",
+	"ibm-granite/granite-3.2-8b-instruct",
 	"ibm-granite/granite-8b-code-instruct-128k",
 	"meta/llama-2-13b",
 	"meta/llama-2-13b-chat",
@@ -50,7 +57,6 @@ var ModelList = []string{
 	"meta/meta-llama-3-8b-instruct",
 	"mistralai/mistral-7b-instruct-v0.2",
 	"mistralai/mistral-7b-v0.1",
-	"mistralai/mixtral-8x7b-instruct-v0.1",
 	// -------------------------------------
 	// video model
 	// -------------------------------------

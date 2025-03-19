@@ -1,15 +1,22 @@
 package model
 
+// Usage is the token usage information returned by OpenAI API.
 type Usage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
 	TotalTokens      int `json:"total_tokens"`
 	// PromptTokensDetails may be empty for some models
-	PromptTokensDetails *usagePromptTokensDetails `gorm:"-" json:"prompt_tokens_details,omitempty"`
+	PromptTokensDetails *usagePromptTokensDetails `json:"prompt_tokens_details,omitempty"`
 	// CompletionTokensDetails may be empty for some models
-	CompletionTokensDetails *usageCompletionTokensDetails `gorm:"-" json:"completion_tokens_details,omitempty"`
-	ServiceTier             string                        `gorm:"-" json:"service_tier,omitempty"`
-	SystemFingerprint       string                        `gorm:"-" json:"system_fingerprint,omitempty"`
+	CompletionTokensDetails *usageCompletionTokensDetails `json:"completion_tokens_details,omitempty"`
+	ServiceTier             string                        `json:"service_tier,omitempty"`
+	SystemFingerprint       string                        `json:"system_fingerprint,omitempty"`
+
+	// -------------------------------------
+	// Custom fields
+	// -------------------------------------
+	// ToolsCost is the cost of using tools, in quota.
+	ToolsCost int64 `json:"tools_cost,omitempty"`
 }
 
 type Error struct {

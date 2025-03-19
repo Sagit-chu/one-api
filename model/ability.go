@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/pkg/errors"
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/utils"
 )
@@ -42,7 +43,7 @@ func GetRandomSatisfiedChannel(group string, model string, ignoreFirstPriority b
 		err = channelQuery.Order("RAND()").First(&ability).Error
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "get random satisfied channel")
 	}
 	channel := Channel{}
 	channel.Id = ability.ChannelId

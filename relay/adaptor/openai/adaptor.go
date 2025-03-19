@@ -1,15 +1,17 @@
 package openai
 
 import (
-	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	"github.com/songquanpeng/one-api/relay/adaptor/alibailian"
@@ -19,6 +21,7 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor/minimax"
 	"github.com/songquanpeng/one-api/relay/adaptor/novita"
 	"github.com/songquanpeng/one-api/relay/adaptor/openrouter"
+	"github.com/songquanpeng/one-api/relay/billing/ratio"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
@@ -117,6 +120,43 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		}
 		request.StreamOptions.IncludeUsage = true
 	}
+
+	// o1/o1-mini/o1-preview do not support system prompt/max_tokens/temperature
+	if strings.HasPrefix(meta.ActualModelName, "o1") ||
+		strings.HasPrefix(meta.ActualModelName, "o3") {
+		temperature := float64(1)
+		request.Temperature = &temperature // Only the default (1) value is supported
+
+		request.MaxTokens = 0
+		request.Messages = func(raw []model.Message) (filtered []model.Message) {
+			for i := range raw {
+				if raw[i].Role != "system" {
+					filtered = append(filtered, raw[i])
+				}
+			}
+
+			return
+		}(request.Messages)
+	}
+
+	// web search do not support system prompt/max_tokens/temperature
+	if strings.HasPrefix(meta.ActualModelName, "gpt-4o-search") ||
+		strings.HasPrefix(meta.ActualModelName, "gpt-4o-mini-search") {
+		request.Temperature = nil
+		request.TopP = nil
+		request.PresencePenalty = nil
+		request.N = nil
+		request.FrequencyPenalty = nil
+	}
+
+	if request.Stream && !config.EnforceIncludeUsage &&
+		(strings.HasPrefix(request.Model, "gpt-4o-audio") ||
+			strings.HasPrefix(request.Model, "gpt-4o-mini-audio")) {
+		// TODO: Since it is not clear how to implement billing in stream mode,
+		// it is temporarily not supported
+		return nil, errors.New("set ENFORCE_INCLUDE_USAGE=true to enable stream mode for gpt-4o-audio")
+	}
+
 	return request, nil
 }
 
@@ -127,11 +167,16 @@ func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) 
 	return request, nil
 }
 
-func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Reader) (*http.Response, error) {
+func (a *Adaptor) DoRequest(c *gin.Context,
+	meta *meta.Meta,
+	requestBody io.Reader) (*http.Response, error) {
 	return adaptor.DoRequestHelper(a, c, meta, requestBody)
 }
 
-func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
+func (a *Adaptor) DoResponse(c *gin.Context,
+	resp *http.Response,
+	meta *meta.Meta) (usage *model.Usage,
+	err *model.ErrorWithStatusCode) {
 	if meta.IsStream {
 		var responseText string
 		err, responseText, usage = StreamHandler(c, resp, meta.Mode)
@@ -150,6 +195,55 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 			err, usage = Handler(c, resp, meta.PromptTokens, meta.ActualModelName)
 		}
 	}
+
+	// -------------------------------------
+	// calculate web-search tool cost
+	// -------------------------------------
+	if usage != nil {
+		searchContextSize := "medium"
+		var req *model.GeneralOpenAIRequest
+		if vi, ok := c.Get(ctxkey.ConvertedRequest); ok {
+			if req, ok = vi.(*model.GeneralOpenAIRequest); ok {
+				if req != nil &&
+					req.WebSearchOptions != nil &&
+					req.WebSearchOptions.SearchContextSize != nil {
+					searchContextSize = *req.WebSearchOptions.SearchContextSize
+				}
+
+				switch {
+				case strings.HasPrefix(meta.ActualModelName, "gpt-4o-search"):
+					switch searchContextSize {
+					case "low":
+						usage.ToolsCost += int64(math.Ceil(30 / 1000 * ratio.QuotaPerUsd))
+					case "medium":
+						usage.ToolsCost += int64(math.Ceil(35 / 1000 * ratio.QuotaPerUsd))
+					case "high":
+						usage.ToolsCost += int64(math.Ceil(40 / 1000 * ratio.QuotaPerUsd))
+					default:
+						return nil, ErrorWrapper(
+							errors.Errorf("invalid search context size %q", searchContextSize),
+							"invalid search context size: "+searchContextSize,
+							http.StatusBadRequest)
+					}
+				case strings.HasPrefix(meta.ActualModelName, "gpt-4o-mini-search"):
+					switch searchContextSize {
+					case "low":
+						usage.ToolsCost += int64(math.Ceil(25 / 1000 * ratio.QuotaPerUsd))
+					case "medium":
+						usage.ToolsCost += int64(math.Ceil(27.5 / 1000 * ratio.QuotaPerUsd))
+					case "high":
+						usage.ToolsCost += int64(math.Ceil(30 / 1000 * ratio.QuotaPerUsd))
+					default:
+						return nil, ErrorWrapper(
+							errors.Errorf("invalid search context size %q", searchContextSize),
+							"invalid search context size: "+searchContextSize,
+							http.StatusBadRequest)
+					}
+				}
+			}
+		}
+	}
+
 	return
 }
 

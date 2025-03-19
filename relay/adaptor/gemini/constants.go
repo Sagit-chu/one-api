@@ -19,6 +19,9 @@ var ModelsSupportSystemInstruction = []string{
 	// "gemini-1.5-pro-experimental",
 	"gemini-2.0-flash", "gemini-2.0-flash-exp",
 	"gemini-2.0-flash-thinking-exp-01-21",
+	"gemini-2.0-flash-lite",
+	// "gemini-2.0-flash-exp-image-generation",
+	"gemini-2.0-pro-exp-02-05",
 }
 
 // IsModelSupportSystemInstruction check if the model support system instruction.

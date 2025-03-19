@@ -25,11 +25,17 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		Prompt: Prompt{
 			Messages: make([]ChatMessage, 0, len(textRequest.Messages)),
 		},
-		Temperature:    textRequest.Temperature,
-		CandidateCount: textRequest.N,
-		TopP:           textRequest.TopP,
-		TopK:           textRequest.MaxTokens,
+		Temperature: textRequest.Temperature,
+		TopP:        textRequest.TopP,
+		TopK:        textRequest.MaxTokens,
 	}
+
+	if textRequest.N != nil {
+		palmRequest.CandidateCount = *textRequest.N
+	} else {
+		palmRequest.CandidateCount = 1
+	}
+
 	for _, message := range textRequest.Messages {
 		palmMessage := ChatMessage{
 			Content: message.StringContent(),

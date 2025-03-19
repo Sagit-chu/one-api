@@ -159,7 +159,9 @@ func ConvertRequest(c *gin.Context, textRequest model.GeneralOpenAIRequest) (*Re
 			var content Content
 			if part.Type == model.ContentTypeText {
 				content.Type = "text"
-				content.Text = part.Text
+				if part.Text != nil {
+					content.Text = *part.Text
+				}
 			} else if part.Type == model.ContentTypeImageURL {
 				content.Type = "image"
 				content.Source = &ImageSource{

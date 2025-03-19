@@ -106,6 +106,8 @@ func testChannel(ctx context.Context, channel *model.Channel, request *relaymode
 	if err != nil {
 		return "", err, nil
 	}
+	c.Set(ctxkey.ConvertedRequest, convertedRequest)
+
 	jsonData, err := json.Marshal(convertedRequest)
 	if err != nil {
 		return "", err, nil

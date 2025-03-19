@@ -43,7 +43,9 @@ func ConvertRequest(request model.GeneralOpenAIRequest) *ChatRequest {
 		for _, part := range openaiContent {
 			switch part.Type {
 			case model.ContentTypeText:
-				contentText = part.Text
+				if part.Text != nil {
+					contentText = *part.Text
+				}
 			case model.ContentTypeImageURL:
 				_, data, _ := image.GetImageFromUrl(part.ImageURL.Url)
 				imageUrls = append(imageUrls, data)
