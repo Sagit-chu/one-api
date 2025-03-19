@@ -1,25 +1,26 @@
 name: Auto Resolve Merge Conflicts
 
 on:
-  pull_request_target:
-    branches:
-      - upstream-pr-406
-    types:
-      - opened
-      - synchronize
+  workflow_dispatch:  # 手动触发
+    inputs:
+      pr_number:
+        description: "Pull Request Number"
+        required: true
+        type: number
 
 jobs:
   resolve-conflicts:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR branch manually
+      - name: Checkout repository
         run: |
           git clone https://github.com/${{ github.repository }}.git
           cd $(basename ${{ github.repository }})
-          git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
+          git fetch origin pull/${{ inputs.pr_number }}/head:pr-branch
           git checkout pr-branch
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          if ! git merge --no-commit --no-ff origin/${{ github.event.pull_request.base.ref }}; then
+          git fetch origin $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+          
+          if ! git merge --no-commit --no-ff origin/$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'); then
             echo "has_conflicts=true" >> $GITHUB_ENV
           else
             echo "has_conflicts=false" >> $GITHUB_ENV
