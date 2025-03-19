@@ -91,7 +91,7 @@ var ModelRatio = map[string]float64{
 	"text-moderation-stable":  0.1,
 	"text-moderation-latest":  0.1,
 	"dall-e-2":                0.02 * USD, // $0.016 - $0.020 / image
-	"dall-e-3":                0.04 * USD  // $0.040 - $0.120 / image
+	"dall-e-3":                0.04 * USD,  // $0.040 - $0.120 / image
 	"claude-instant-1.2":         0.8 / 1000 * USD,
 	"claude-2.0":                 8.0 / 1000 * USD,
 	"claude-2.1":                 8.0 / 1000 * USD,
