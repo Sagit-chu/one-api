@@ -1,0 +1,54 @@
+name: Auto Resolve Merge Conflicts
+
+on:
+  pull_request:
+    branches:
+        - upstream-pr-406 # 仅对指定分支进行操作
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  resolve-conflicts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Check for Merge Conflicts
+        id: check_conflicts
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          if ! git merge --no-commit --no-ff origin/${{ github.event.pull_request.base.ref }}; then
+            echo "has_conflicts=true" >> $GITHUB_ENV
+          else
+            echo "has_conflicts=false" >> $GITHUB_ENV
+          fi
+
+      - name: Extract Conflict Files
+        if: env.has_conflicts == 'true'
+        run: |
+          git diff --name-only --diff-filter=U > conflict_files.txt
+          cat conflict_files.txt
+
+      - name: Resolve Conflicts with AI
+        if: env.has_conflicts == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}  # 新增 API 代理支持
+        run: python3 .github/scripts/resolve_conflicts.py
+
+      - name: Commit and Push if Changes Exist
+        if: env.has_conflicts == 'true'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config --global user.email "bot@github.com"
+            git config --global user.name "MergeBot"
+            git add .
+            git commit -m "Auto-resolved merge conflicts using AI"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
