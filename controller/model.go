@@ -2,8 +2,17 @@ package controller
 
 import (
 	"fmt"
-
 	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/model"
+	relay "github.com/songquanpeng/one-api/relay"
+	"github.com/songquanpeng/one-api/relay/adaptor/openai"
+	"github.com/songquanpeng/one-api/relay/apitype"
+	"github.com/songquanpeng/one-api/relay/channeltype"
+	"github.com/songquanpeng/one-api/relay/meta"
+	relaymodel "github.com/songquanpeng/one-api/relay/model"
+	"net/http"
+	"strings"
 )
 
 // https://platform.openai.com/docs/api-reference/models/list
@@ -33,8 +42,9 @@ type OpenAIModels struct {
 	Parent     *string                 `json:"parent"`
 }
 
-var openAIModels []OpenAIModels
-var openAIModelsMap map[string]OpenAIModels
+var models []OpenAIModels
+var modelsMap map[string]OpenAIModels
+var channelId2Models map[int][]string
 
 func init() {
 	var permission []OpenAIModelPermission
@@ -53,457 +63,151 @@ func init() {
 		IsBlocking:         false,
 	})
 	// https://platform.openai.com/docs/models/model-endpoint-compatibility
-	openAIModels = []OpenAIModels{
-		{
-			Id:         "dall-e",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "dall-e",
-			Parent:     nil,
-		},
-		{
-			Id:         "whisper-1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "whisper-1",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo-0301",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo-0301",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo-0613",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo-0613",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo-16k",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo-16k",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo-16k-0613",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo-16k-0613",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo-1106",
-			Object:     "model",
-			Created:    1699593571,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo-1106",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-3.5-turbo-instruct",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-3.5-turbo-instruct",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-0314",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-0314",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-0613",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-0613",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-32k",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-32k",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-32k-0314",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-32k-0314",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-32k-0613",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-32k-0613",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-1106-preview",
-			Object:     "model",
-			Created:    1699593571,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-1106-preview",
-			Parent:     nil,
-		},
-		{
-			Id:         "gpt-4-vision-preview",
-			Object:     "model",
-			Created:    1699593571,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "gpt-4-vision-preview",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-embedding-ada-002",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-embedding-ada-002",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-davinci-003",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-davinci-003",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-davinci-002",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-davinci-002",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-curie-001",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-curie-001",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-babbage-001",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-babbage-001",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-ada-001",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-ada-001",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-moderation-latest",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-moderation-latest",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-moderation-stable",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-moderation-stable",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-davinci-edit-001",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "text-davinci-edit-001",
-			Parent:     nil,
-		},
-		{
-			Id:         "code-davinci-edit-001",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "openai",
-			Permission: permission,
-			Root:       "code-davinci-edit-001",
-			Parent:     nil,
-		},
-		{
-			Id:         "claude-instant-1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "anthropic",
-			Permission: permission,
-			Root:       "claude-instant-1",
-			Parent:     nil,
-		},
-		{
-			Id:         "claude-2",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "anthropic",
-			Permission: permission,
-			Root:       "claude-2",
-			Parent:     nil,
-		},
-		{
-			Id:         "ERNIE-Bot",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "baidu",
-			Permission: permission,
-			Root:       "ERNIE-Bot",
-			Parent:     nil,
-		},
-		{
-			Id:         "ERNIE-Bot-turbo",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "baidu",
-			Permission: permission,
-			Root:       "ERNIE-Bot-turbo",
-			Parent:     nil,
-		},
-		{
-			Id:         "ERNIE-Bot-4",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "baidu",
-			Permission: permission,
-			Root:       "ERNIE-Bot-4",
-			Parent:     nil,
-		},
-		{
-			Id:         "Embedding-V1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "baidu",
-			Permission: permission,
-			Root:       "Embedding-V1",
-			Parent:     nil,
-		},
-		{
-			Id:         "PaLM-2",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "google",
-			Permission: permission,
-			Root:       "PaLM-2",
-			Parent:     nil,
-		},
-		{
-			Id:         "chatglm_turbo",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "zhipu",
-			Permission: permission,
-			Root:       "chatglm_turbo",
-			Parent:     nil,
-		},
-		{
-			Id:         "chatglm_pro",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "zhipu",
-			Permission: permission,
-			Root:       "chatglm_pro",
-			Parent:     nil,
-		},
-		{
-			Id:         "chatglm_std",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "zhipu",
-			Permission: permission,
-			Root:       "chatglm_std",
-			Parent:     nil,
-		},
-		{
-			Id:         "chatglm_lite",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "zhipu",
-			Permission: permission,
-			Root:       "chatglm_lite",
-			Parent:     nil,
-		},
-		{
-			Id:         "qwen-turbo",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "ali",
-			Permission: permission,
-			Root:       "qwen-turbo",
-			Parent:     nil,
-		},
-		{
-			Id:         "qwen-plus",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "ali",
-			Permission: permission,
-			Root:       "qwen-plus",
-			Parent:     nil,
-		},
-		{
-			Id:         "text-embedding-v1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "ali",
-			Permission: permission,
-			Root:       "text-embedding-v1",
-			Parent:     nil,
-		},
-		{
-			Id:         "SparkDesk",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "xunfei",
-			Permission: permission,
-			Root:       "SparkDesk",
-			Parent:     nil,
-		},
-		{
-			Id:         "360GPT_S2_V9",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "360",
-			Permission: permission,
-			Root:       "360GPT_S2_V9",
-			Parent:     nil,
-		},
-		{
-			Id:         "embedding-bert-512-v1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "360",
-			Permission: permission,
-			Root:       "embedding-bert-512-v1",
-			Parent:     nil,
-		},
-		{
-			Id:         "embedding_s1_v1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "360",
-			Permission: permission,
-			Root:       "embedding_s1_v1",
-			Parent:     nil,
-		},
-		{
-			Id:         "semantic_similarity_s1_v1",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "360",
-			Permission: permission,
-			Root:       "semantic_similarity_s1_v1",
-			Parent:     nil,
-		},
-		{
-			Id:         "hunyuan",
-			Object:     "model",
-			Created:    1677649963,
-			OwnedBy:    "tencent",
-			Permission: permission,
-			Root:       "hunyuan",
-			Parent:     nil,
-		},
+	for i := 0; i < apitype.Dummy; i++ {
+		if i == apitype.AIProxyLibrary {
+			continue
+		}
+		adaptor := relay.GetAdaptor(i)
+		channelName := adaptor.GetChannelName()
+		modelNames := adaptor.GetModelList()
+		for _, modelName := range modelNames {
+			models = append(models, OpenAIModels{
+				Id:         modelName,
+				Object:     "model",
+				Created:    1626777600,
+				OwnedBy:    channelName,
+				Permission: permission,
+				Root:       modelName,
+				Parent:     nil,
+			})
+		}
 	}
-	openAIModelsMap = make(map[string]OpenAIModels)
-	for _, model := range openAIModels {
-		openAIModelsMap[model.Id] = model
+	for _, channelType := range openai.CompatibleChannels {
+		if channelType == channeltype.Azure {
+			continue
+		}
+		channelName, channelModelList := openai.GetCompatibleChannelMeta(channelType)
+		for _, modelName := range channelModelList {
+			models = append(models, OpenAIModels{
+				Id:         modelName,
+				Object:     "model",
+				Created:    1626777600,
+				OwnedBy:    channelName,
+				Permission: permission,
+				Root:       modelName,
+				Parent:     nil,
+			})
+		}
+	}
+	modelsMap = make(map[string]OpenAIModels)
+	for _, model := range models {
+		modelsMap[model.Id] = model
+	}
+	channelId2Models = make(map[int][]string)
+	for i := 1; i < channeltype.Dummy; i++ {
+		adaptor := relay.GetAdaptor(channeltype.ToAPIType(i))
+		meta := &meta.Meta{
+			ChannelType: i,
+		}
+		adaptor.Init(meta)
+		channelId2Models[i] = adaptor.GetModelList()
 	}
 }
 
-func ListModels(c *gin.Context) {
+func DashboardListModels(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    channelId2Models,
+	})
+}
+
+func ListAllModels(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"object": "list",
-		"data":   openAIModels,
+		"data":   models,
+	})
+}
+
+func ListModels(c *gin.Context) {
+	ctx := c.Request.Context()
+	var availableModels []string
+	if c.GetString(ctxkey.AvailableModels) != "" {
+		availableModels = strings.Split(c.GetString(ctxkey.AvailableModels), ",")
+	} else {
+		userId := c.GetInt(ctxkey.Id)
+		userGroup, _ := model.CacheGetUserGroup(userId)
+		availableModels, _ = model.CacheGetGroupModels(ctx, userGroup)
+	}
+	modelSet := make(map[string]bool)
+	for _, availableModel := range availableModels {
+		modelSet[availableModel] = true
+	}
+	availableOpenAIModels := make([]OpenAIModels, 0)
+	for _, model := range models {
+		if _, ok := modelSet[model.Id]; ok {
+			modelSet[model.Id] = false
+			availableOpenAIModels = append(availableOpenAIModels, model)
+		}
+	}
+	for modelName, ok := range modelSet {
+		if ok {
+			availableOpenAIModels = append(availableOpenAIModels, OpenAIModels{
+				Id:      modelName,
+				Object:  "model",
+				Created: 1626777600,
+				OwnedBy: "custom",
+				Root:    modelName,
+				Parent:  nil,
+			})
+		}
+	}
+	c.JSON(200, gin.H{
+		"object": "list",
+		"data":   availableOpenAIModels,
 	})
 }
 
 func RetrieveModel(c *gin.Context) {
 	modelId := c.Param("model")
-	if model, ok := openAIModelsMap[modelId]; ok {
+	if model, ok := modelsMap[modelId]; ok {
 		c.JSON(200, model)
 	} else {
-		openAIError := OpenAIError{
+		Error := relaymodel.Error{
 			Message: fmt.Sprintf("The model '%s' does not exist", modelId),
 			Type:    "invalid_request_error",
 			Param:   "model",
 			Code:    "model_not_found",
 		}
 		c.JSON(200, gin.H{
-			"error": openAIError,
+			"error": Error,
 		})
 	}
+}
+
+func GetUserAvailableModels(c *gin.Context) {
+	ctx := c.Request.Context()
+	id := c.GetInt(ctxkey.Id)
+	userGroup, err := model.CacheGetUserGroup(id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	models, err := model.CacheGetGroupModels(ctx, userGroup)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    models,
+	})
+	return
 }
