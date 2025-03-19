@@ -28,7 +28,7 @@ type GeneralOpenAIRequest struct {
 	Messages            []Message       `json:"messages,omitempty"`
 	Model               string          `json:"model,omitempty"`
 	Store               *bool           `json:"store,omitempty"`
-	ReasoningEffort     *string         `json:"reasoning_effort,omitempty"`
+	ReasoningEffort     *string         `json:"reasoning_effort,omitempty" binding:"omitempty,oneof=low medium high"`
 	Metadata            any             `json:"metadata,omitempty"`
 	FrequencyPenalty    *float64        `json:"frequency_penalty,omitempty"`
 	LogitBias           any             `json:"logit_bias,omitempty"`
@@ -52,7 +52,7 @@ type GeneralOpenAIRequest struct {
 	TopK                int             `json:"top_k,omitempty"`
 	Tools               []Tool          `json:"tools,omitempty"`
 	ToolChoice          any             `json:"tool_choice,omitempty"`
-	ParallelTooCalls    *bool           `json:"parallel_tool_calls,omitempty"`
+	ParallelToolCalls   *bool           `json:"parallel_tool_calls,omitempty"`
 	User                string          `json:"user,omitempty"`
 	FunctionCall        any             `json:"function_call,omitempty"`
 	Functions           any             `json:"functions,omitempty"`
