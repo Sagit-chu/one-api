@@ -68,12 +68,13 @@ jobs:
                 // 创建新分支
                 await exec.exec('git', ['fetch', `https://github.com/${owner}/${repo}.git`, `pull/${pull.number}/head:${branchName}`]);
                 
-                // 检查是否已存在相同的PR
+                // 检查是否已存在相同的PR（包括已关闭的）
                 const existingPulls = await github.rest.pulls.list({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   head: `${context.repo.owner}:${branchName}`,
-                 });
+                  state: 'all'  // 检查所有状态的PR，包括open和closed
+                });
                 
                 if (existingPulls.data.length === 0) {
                   // 推送分支
