@@ -17,7 +17,7 @@ jobs:
           git config --global user.email "bot@github.com"
           git config --global user.name "MergeBot"
           git clone https://github.com/${{ github.repository }}.git
-          cd $(basename ${{ github.repository }})
+          cd $(basename -s .git ${{ github.repository }})
           git fetch origin pull/${{ inputs.pr_number }}/head:pr-branch
           git checkout pr-branch
           git fetch origin $(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
@@ -31,6 +31,7 @@ jobs:
       - name: Extract Conflict Files
         if: env.has_conflicts == 'true'
         run: |
+          cd $(basename -s .git ${{ github.repository }})
           git diff --name-only --diff-filter=U > conflict_files.txt
           cat conflict_files.txt
 
