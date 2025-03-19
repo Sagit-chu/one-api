@@ -61,17 +61,60 @@ jobs:
             exit 1
           fi
           python3 .github/scripts/resolve_conflicts.py
+
+      - name: Get PR Information
+        if: env.has_conflicts == 'true'
+        id: pr_info
+        run: |
+          PR_DATA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}")
+          echo "base_branch=$(echo $PR_DATA | jq -r .base.ref)" >> $GITHUB_OUTPUT
+          echo "base_sha=$(echo $PR_DATA | jq -r .base.sha)" >> $GITHUB_OUTPUT
         
       - name: Commit and Push if Changes Exist
         if: env.has_conflicts == 'true'
         run: |
           if [ -n "$(git status --porcelain)" ]; then
+            # 先清理当前工作区
             git add .
             git commit -m "Auto-resolved merge conflicts using AI"
-            if ! git push origin HEAD:pr-branch; then
-              echo "Failed to push changes"
+            
+            # 确保我们有最新的远程分支状态
+            git fetch origin pr-branch
+            
+            # 创建临时分支以保存我们的更改
+            current_sha=$(git rev-parse HEAD)
+            git branch tmp-resolved $current_sha
+            
+            # 重置到远程分支的最新状态
+            git reset --hard origin/pr-branch
+            
+            # 合并我们的更改
+            if ! git merge tmp-resolved -m "Merge AI resolved conflicts"; then
+              echo "Failed to merge changes"
+              git merge --abort
+              git branch -D tmp-resolved
               exit 1
             fi
+            
+            # 推送更改
+            if ! git push origin HEAD:pr-branch; then
+              echo "Failed to push changes"
+              git branch -D tmp-resolved
+              exit 1
+            fi
+            
+            # 清理临时分支
+            git branch -D tmp-resolved
           else
             echo "No changes to commit"
           fi
+
+      - name: Try to Merge PR
+        if: env.has_conflicts == 'true'
+        run: |
+          PR_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/merge"
+          curl -X PUT -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            --data "{\"merge_method\": \"merge\"}" \
+            $PR_URL || echo "Merge attempt failed - manual review may be needed"

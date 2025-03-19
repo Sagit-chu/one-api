@@ -2,6 +2,7 @@ import os
 import openai
 import subprocess
 from openai import OpenAI
+import difflib
 
 # 读取环境变量
 api_key = os.getenv("OPENAI_API_KEY")
@@ -49,6 +50,16 @@ def apply_fix(file_path, fixed_content):
     with open(file_path, "w") as file:
         file.write(fixed_content)
 
+def show_diff(original, resolved, file_path):
+    """显示解决前后的差异"""
+    diff = difflib.unified_diff(
+        original.splitlines(keepends=True),
+        resolved.splitlines(keepends=True),
+        fromfile=f"{file_path} (with conflicts)",
+        tofile=f"{file_path} (resolved)"
+    )
+    return ''.join(diff)
+
 def main():
     """ 解决所有冲突的主逻辑 """
     conflicted_files = get_conflicted_files()
@@ -57,12 +68,26 @@ def main():
         if not file_path.strip():
             continue
         
-        print(f"Resolving conflicts in: {file_path}")
+        print(f"\n{'='*80}\n处理文件: {file_path}")
+        print(f"{'='*80}")
+        
         conflict_content = get_conflict_content(file_path)
+        print("\n[冲突内容]:")
+        print("-" * 40)
+        print(conflict_content)
+        print("-" * 40)
+        
         fixed_content = resolve_conflict_with_ai(conflict_content)
+        
+        print("\n[解决差异]:")
+        print("-" * 40)
+        print(show_diff(conflict_content, fixed_content, file_path))
+        print("-" * 40)
+        
         apply_fix(file_path, fixed_content)
+        print(f"\n✅ 文件 {file_path} 的冲突已解决")
     
-    print("All conflicts resolved.")
+    print("\n所有冲突已解决完成.")
 
 if __name__ == "__main__":
     main()
