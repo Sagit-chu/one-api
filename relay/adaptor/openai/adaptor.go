@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,12 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 		requestURL := strings.Split(meta.RequestURLPath, "?")[0]
 		requestURL = fmt.Sprintf("%s?api-version=%s", requestURL, defaultVersion)
 		task := strings.TrimPrefix(requestURL, "/v1/")
+
+		// Azure AI model inference API `https://<resource-name>.services.ai.azure.com/models`
+		if path.Base(meta.BaseURL) == "models" {
+			return GetFullRequestURL(meta.BaseURL, "/" + task, meta.ChannelType), nil
+		}
+
 		model_ := meta.ActualModelName
 		model_ = strings.Replace(model_, ".", "", -1)
 		//https://github.com/songquanpeng/one-api/issues/1191
