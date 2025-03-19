@@ -9,10 +9,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/relay/adaptor"
+	"github.com/songquanpeng/one-api/relay/adaptor/alibailian"
+	"github.com/songquanpeng/one-api/relay/adaptor/baiduv2"
 	"github.com/songquanpeng/one-api/relay/adaptor/doubao"
+	"github.com/songquanpeng/one-api/relay/adaptor/geminiv2"
 	"github.com/songquanpeng/one-api/relay/adaptor/minimax"
 	"github.com/songquanpeng/one-api/relay/adaptor/novita"
+	"github.com/songquanpeng/one-api/relay/adaptor/openrouter"
 	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
@@ -61,6 +66,12 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 		return doubao.GetRequestURL(meta)
 	case channeltype.Novita:
 		return novita.GetRequestURL(meta)
+	case channeltype.BaiduV2:
+		return baiduv2.GetRequestURL(meta)
+	case channeltype.AliBailian:
+		return alibailian.GetRequestURL(meta)
+	case channeltype.GeminiOpenAICompatible:
+		return geminiv2.GetRequestURL(meta)
 	default:
 		return GetFullRequestURL(meta.BaseURL, meta.RequestURLPath, meta.ChannelType), nil
 	}
@@ -84,7 +95,29 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
-	if request.Stream {
+
+	meta := meta.GetByContext(c)
+	switch meta.ChannelType {
+	case channeltype.OpenRouter:
+		includeReasoning := true
+		request.IncludeReasoning = &includeReasoning
+		if request.Provider == nil || request.Provider.Sort == "" &&
+			config.OpenrouterProviderSort != "" {
+			if request.Provider == nil {
+				request.Provider = &openrouter.RequestProvider{}
+			}
+
+			request.Provider.Sort = config.OpenrouterProviderSort
+		}
+	default:
+	}
+
+	if request.Stream && !config.EnforceIncludeUsage {
+		logger.Warn(c.Request.Context(),
+			"please set ENFORCE_INCLUDE_USAGE=true to ensure accurate billing in stream mode")
+	}
+
+	if config.EnforceIncludeUsage && request.Stream {
 		// always return usage in stream mode
 		if request.StreamOptions == nil {
 			request.StreamOptions = &model.StreamOptions{}

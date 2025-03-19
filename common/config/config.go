@@ -126,10 +126,10 @@ var ValidThemes = map[string]bool{
 // All duration's unit is seconds
 // Shouldn't larger then RateLimitKeyExpirationDuration
 var (
-	GlobalApiRateLimitNum            = env.Int("GLOBAL_API_RATE_LIMIT", 240)
+	GlobalApiRateLimitNum            = env.Int("GLOBAL_API_RATE_LIMIT", 480)
 	GlobalApiRateLimitDuration int64 = 3 * 60
 
-	GlobalWebRateLimitNum            = env.Int("GLOBAL_WEB_RATE_LIMIT", 120)
+	GlobalWebRateLimitNum            = env.Int("GLOBAL_WEB_RATE_LIMIT", 240)
 	GlobalWebRateLimitDuration int64 = 3 * 60
 
 	UploadRateLimitNum            = 10
@@ -163,4 +163,7 @@ var UserContentRequestProxy = env.String("USER_CONTENT_REQUEST_PROXY", "")
 var UserContentRequestTimeout = env.Int("USER_CONTENT_REQUEST_TIMEOUT", 30)
 
 var EnforceIncludeUsage = env.Bool("ENFORCE_INCLUDE_USAGE", false)
-var TestPrompt = env.String("TEST_PROMPT", "Print your model name exactly and do not output without any other text.")
+var TestPrompt = env.String("TEST_PROMPT", "Output only your specific model name with no additional text.")
+
+// OpenrouterProviderSort is used to determine the order of the providers in the openrouter
+var OpenrouterProviderSort = env.String("OPENROUTER_PROVIDER_SORT", "")

@@ -1,25 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  Form,
-  Header,
-  Input,
-  Message,
-  Segment,
-  Card,
-} from 'semantic-ui-react';
-import { useNavigate, useParams } from 'react-router-dom';
-import {
-  API,
-  copy,
-  getChannelModels,
-  showError,
-  showInfo,
-  showSuccess,
-  verifyJSON,
-} from '../../helpers';
-import { CHANNEL_OPTIONS } from '../../constants';
+import React, {useEffect, useState} from 'react';
+import {useTranslation} from 'react-i18next';
+import {Button, Card, Form, Input, Message} from 'semantic-ui-react';
+import {useNavigate, useParams} from 'react-router-dom';
+import {API, copy, getChannelModels, showError, showInfo, showSuccess, verifyJSON,} from '../../helpers';
+import {CHANNEL_OPTIONS} from '../../constants';
+import {renderChannelTip} from '../../helpers/render';
 
 const MODEL_MAPPING_EXAMPLE = {
   'gpt-3.5-turbo-0301': 'gpt-3.5-turbo',
@@ -207,6 +192,9 @@ const EditChannel = () => {
       return;
     }
     let localInputs = { ...inputs };
+    if (localInputs.key === 'undefined|undefined|undefined') {
+      localInputs.key = ''; // prevent potential bug
+    }
     if (localInputs.base_url && localInputs.base_url.endsWith('/')) {
       localInputs.base_url = localInputs.base_url.slice(
         0,
@@ -307,6 +295,7 @@ const EditChannel = () => {
                 options={groupOptions}
               />
             </Form.Field>
+            {renderChannelTip(inputs.type)}
 
             {/* Azure OpenAI specific fields */}
             {inputs.type === 3 && (
@@ -350,6 +339,20 @@ const EditChannel = () => {
             {inputs.type === 8 && (
               <Form.Field>
                 <Form.Input
+                    required
+                    label={t('channel.edit.proxy_url')}
+                    name='base_url'
+                    placeholder={t('channel.edit.proxy_url_placeholder')}
+                    onChange={handleInputChange}
+                    value={inputs.base_url}
+                    autoComplete='new-password'
+                />
+              </Form.Field>
+            )}
+            {inputs.type === 50 && (
+                <Form.Field>
+                  <Form.Input
+                      required
                   label={t('channel.edit.base_url')}
                   name='base_url'
                   placeholder={t('channel.edit.base_url_placeholder')}
@@ -622,6 +625,21 @@ const EditChannel = () => {
                   />
                 </Form.Field>
               ))}
+            {inputs.type === 37 && (
+              <Form.Field>
+                <Form.Input
+                  label='Account ID'
+                  name='user_id'
+                  required
+                  placeholder={
+                    '请输入 Account ID，例如：d8d7c61dbc334c32d3ced580e4bf42b4'
+                  }
+                  onChange={handleConfigChange}
+                  value={config.user_id}
+                  autoComplete=''
+                />
+              </Form.Field>
+            )}
             {inputs.type !== 33 && !isEdit && (
               <Form.Checkbox
                 checked={batch}
@@ -633,12 +651,13 @@ const EditChannel = () => {
             {inputs.type !== 3 &&
               inputs.type !== 33 &&
               inputs.type !== 8 &&
+                inputs.type !== 50 &&
               inputs.type !== 22 && (
                 <Form.Field>
                   <Form.Input
-                    label={t('channel.edit.base_url')}
+                      label={t('channel.edit.proxy_url')}
                     name='base_url'
-                    placeholder={t('channel.edit.base_url_placeholder')}
+                      placeholder={t('channel.edit.proxy_url_placeholder')}
                     onChange={handleInputChange}
                     value={inputs.base_url}
                     autoComplete='new-password'

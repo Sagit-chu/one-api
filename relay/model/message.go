@@ -24,6 +24,11 @@ type Message struct {
 	// Prefix Completion feature as the input for the CoT in the last assistant message.
 	// When using this feature, the prefix parameter must be set to true.
 	ReasoningContent *string `json:"reasoning_content,omitempty"`
+	// -------------------------------------
+	// Openrouter
+	// -------------------------------------
+	Reasoning *string `json:"reasoning,omitempty"`
+	Refusal   *bool   `json:"refusal,omitempty"`
 }
 
 type messageAudio struct {

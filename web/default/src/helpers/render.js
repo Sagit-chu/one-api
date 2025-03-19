@@ -1,4 +1,6 @@
-import { Label } from 'semantic-ui-react';
+import { Label, Message } from 'semantic-ui-react';
+import { getChannelOption } from './helper';
+import React from 'react';
 
 export function renderText(text, limit) {
   if (text.length > limit) {
@@ -14,7 +16,15 @@ export function renderGroup(group) {
   let groups = group.split(',');
   groups.sort();
   return (
-    <>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '2px',
+        rowGap: '6px',
+      }}
+    >
       {groups.map((group) => {
         if (group === 'vip' || group === 'pro') {
           return <Label color='yellow'>{group}</Label>;
@@ -23,7 +33,7 @@ export function renderGroup(group) {
         }
         return <Label>{group}</Label>;
       })}
-    </>
+    </div>
   );
 }
 
@@ -39,23 +49,33 @@ export function renderNumber(num) {
   }
 }
 
-export function renderQuota(quota, digits = 2) {
-  let quotaPerUnit = localStorage.getItem('quota_per_unit');
-  let displayInCurrency = localStorage.getItem('display_in_currency');
-  quotaPerUnit = parseFloat(quotaPerUnit);
-  displayInCurrency = displayInCurrency === 'true';
+export function renderQuota(quota, t, precision = 2) {
+  const displayInCurrency =
+    localStorage.getItem('display_in_currency') === 'true';
+  const quotaPerUnit = parseFloat(
+    localStorage.getItem('quota_per_unit') || '1'
+  );
+
   if (displayInCurrency) {
-    return '$' + (quota / quotaPerUnit).toFixed(digits);
+    const amount = (quota / quotaPerUnit).toFixed(precision);
+    return t('common.quota.display_short', { amount });
   }
+
   return renderNumber(quota);
 }
 
-export function renderQuotaWithPrompt(quota, digits) {
-  let displayInCurrency = localStorage.getItem('display_in_currency');
-  displayInCurrency = displayInCurrency === 'true';
+export function renderQuotaWithPrompt(quota, t) {
+  const displayInCurrency =
+    localStorage.getItem('display_in_currency') === 'true';
+  const quotaPerUnit = parseFloat(
+    localStorage.getItem('quota_per_unit') || '1'
+  );
+
   if (displayInCurrency) {
-    return `（等价金额：${renderQuota(quota, digits)}）`;
+    const amount = (quota / quotaPerUnit).toFixed(2);
+    return ` (${t('common.quota.display', { amount })})`;
   }
+
   return '';
 }
 
@@ -85,5 +105,17 @@ export function renderColorLabel(text) {
     <Label basic color={colors[index]}>
       {text}
     </Label>
+  );
+}
+
+export function renderChannelTip(channelId) {
+  let channel = getChannelOption(channelId);
+  if (channel === undefined || channel.tip === undefined) {
+    return <></>;
+  }
+  return (
+    <Message>
+      <div dangerouslySetInnerHTML={{ __html: channel.tip }}></div>
+    </Message>
   );
 }

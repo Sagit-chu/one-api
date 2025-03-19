@@ -19,6 +19,7 @@ var ModelList = []string{
 	"claude-3-5-sonnet@20240620",
 	"claude-3-5-sonnet-v2@20241022",
 	"claude-3-5-haiku@20241022",
+	"claude-3-7-sonnet@20250219",
 }
 
 const anthropicVersion = "vertex-2023-10-16"
@@ -31,7 +32,11 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return nil, errors.New("request is nil")
 	}
 
-	claudeReq := anthropic.ConvertRequest(*request)
+	claudeReq, err := anthropic.ConvertRequest(c, *request)
+	if err != nil {
+		return nil, errors.Wrap(err, "convert request")
+	}
+
 	req := Request{
 		AnthropicVersion: anthropicVersion,
 		// Model:            claudeReq.Model,

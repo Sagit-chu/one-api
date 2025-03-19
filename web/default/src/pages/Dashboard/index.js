@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Grid, Statistic } from 'semantic-ui-react';
+import React, {useEffect, useState} from 'react';
+import {useTranslation} from 'react-i18next';
+import {Card, Grid} from 'semantic-ui-react';
 import {
-  LineChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend,
 } from 'recharts';
 import axios from 'axios';
 import './Dashboard.css';
@@ -53,6 +54,7 @@ const chartConfig = {
 };
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const [data, setData] = useState([]);
   const [summaryData, setSummaryData] = useState({
     todayRequests: 0,
@@ -84,7 +86,7 @@ const Dashboard = () => {
       setSummaryData({
         todayRequests: 0,
         todayQuota: 0,
-        todayTokens: 0
+        todayTokens: 0,
       });
       return;
     }
@@ -114,8 +116,18 @@ const Dashboard = () => {
 
     // 获取日期范围
     const dates = data.map((item) => item.Day);
-    const minDate = new Date(Math.min(...dates.map((d) => new Date(d))));
-    const maxDate = new Date(Math.max(...dates.map((d) => new Date(d))));
+    const maxDate = new Date(); // 总是使用今天作为最后一天
+    let minDate =
+      dates.length > 0
+        ? new Date(Math.min(...dates.map((d) => new Date(d))))
+        : new Date();
+
+    // 确保至少显示7天的数据
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // -6是因为包含今天
+    if (minDate > sevenDaysAgo) {
+      minDate = sevenDaysAgo;
+    }
 
     // 生成所有日期
     for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
@@ -146,8 +158,18 @@ const Dashboard = () => {
 
     // 获取日期范围
     const dates = data.map((item) => item.Day);
-    const minDate = new Date(Math.min(...dates.map((d) => new Date(d))));
-    const maxDate = new Date(Math.max(...dates.map((d) => new Date(d))));
+    const maxDate = new Date(); // 总是使用今天作为最后一天
+    let minDate =
+      dates.length > 0
+        ? new Date(Math.min(...dates.map((d) => new Date(d))))
+        : new Date();
+
+    // 确保至少显示7天的数据
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // -6是因为包含今天
+    if (minDate > sevenDaysAgo) {
+      minDate = sevenDaysAgo;
+    }
 
     // 生成所有日期
     for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
@@ -186,6 +208,31 @@ const Dashboard = () => {
     return chartConfig.barColors[index % chartConfig.barColors.length];
   };
 
+  // 添加一个日期格式化函数
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-CN', {
+      month: 'numeric',
+      day: 'numeric',
+    });
+  };
+
+  // 修改所有 XAxis 配置
+  const xAxisConfig = {
+    dataKey: 'date',
+    axisLine: false,
+    tickLine: false,
+    tick: {
+      fontSize: 12,
+      fill: '#A3AED0',
+      textAnchor: 'middle', // 文本居中对齐
+    },
+    tickFormatter: formatDate,
+    interval: 0,
+    minTickGap: 5,
+    padding: { left: 30, right: 30 }, // 增加两侧的内边距，确保首尾标签完整显示
+  };
+
   return (
     <div className='dashboard-container'>
       {/* 三个并排的折线图 */}
@@ -194,11 +241,15 @@ const Dashboard = () => {
           <Card fluid className='chart-card'>
             <Card.Content>
               <Card.Header>
-                模型请求趋势
-                <span className='stat-value'>{summaryData.todayRequests}</span>
+                {t('dashboard.charts.requests.title')}
+                {/* <span className='stat-value'>{summaryData.todayRequests}</span> */}
               </Card.Header>
               <div className='chart-container'>
-                <ResponsiveContainer width='100%' height={120}>
+                <ResponsiveContainer
+                  width='100%'
+                  height={120}
+                  margin={{ left: 10, right: 10 }} // 调整容器边距
+                >
                   <LineChart data={timeSeriesData}>
                     <CartesianGrid
                       strokeDasharray='3 3'
@@ -206,12 +257,7 @@ const Dashboard = () => {
                       horizontal={chartConfig.lineChart.grid.horizontal}
                       opacity={chartConfig.lineChart.grid.opacity}
                     />
-                    <XAxis
-                      dataKey='date'
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: '#A3AED0' }}
-                    />
+                    <XAxis {...xAxisConfig} />
                     <YAxis hide={true} />
                     <Tooltip
                       contentStyle={{
@@ -220,6 +266,15 @@ const Dashboard = () => {
                         borderRadius: '4px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                       }}
+                      formatter={(value) => [
+                        value,
+                        t('dashboard.charts.requests.tooltip'),
+                      ]}
+                      labelFormatter={(label) =>
+                        `${t(
+                          'dashboard.statistics.tooltip.date'
+                        )}: ${formatDate(label)}`
+                      }
                     />
                     <Line
                       type='monotone'
@@ -240,13 +295,17 @@ const Dashboard = () => {
           <Card fluid className='chart-card'>
             <Card.Content>
               <Card.Header>
-                额度消费趋势
-                <span className='stat-value'>
+                {t('dashboard.charts.quota.title')}
+                {/* <span className='stat-value'>
                   ${summaryData.todayQuota.toFixed(3)}
-                </span>
+                </span> */}
               </Card.Header>
               <div className='chart-container'>
-                <ResponsiveContainer width='100%' height={120}>
+                <ResponsiveContainer
+                  width='100%'
+                  height={120}
+                  margin={{ left: 10, right: 10 }} // 调整容器边距
+                >
                   <LineChart data={timeSeriesData}>
                     <CartesianGrid
                       strokeDasharray='3 3'
@@ -254,12 +313,7 @@ const Dashboard = () => {
                       horizontal={chartConfig.lineChart.grid.horizontal}
                       opacity={chartConfig.lineChart.grid.opacity}
                     />
-                    <XAxis
-                      dataKey='date'
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: '#A3AED0' }}
-                    />
+                    <XAxis {...xAxisConfig} />
                     <YAxis hide={true} />
                     <Tooltip
                       contentStyle={{
@@ -268,6 +322,15 @@ const Dashboard = () => {
                         borderRadius: '4px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                       }}
+                      formatter={(value) => [
+                        value.toFixed(6),
+                        t('dashboard.charts.quota.tooltip'),
+                      ]}
+                      labelFormatter={(label) =>
+                        `${t(
+                          'dashboard.statistics.tooltip.date'
+                        )}: ${formatDate(label)}`
+                      }
                     />
                     <Line
                       type='monotone'
@@ -288,11 +351,15 @@ const Dashboard = () => {
           <Card fluid className='chart-card'>
             <Card.Content>
               <Card.Header>
-                Token 消费趋势
-                <span className='stat-value'>{summaryData.todayTokens}</span>
+                {t('dashboard.charts.tokens.title')}
+                {/* <span className='stat-value'>{summaryData.todayTokens}</span> */}
               </Card.Header>
               <div className='chart-container'>
-                <ResponsiveContainer width='100%' height={120}>
+                <ResponsiveContainer
+                  width='100%'
+                  height={120}
+                  margin={{ left: 10, right: 10 }} // 调整容器边距
+                >
                   <LineChart data={timeSeriesData}>
                     <CartesianGrid
                       strokeDasharray='3 3'
@@ -300,12 +367,7 @@ const Dashboard = () => {
                       horizontal={chartConfig.lineChart.grid.horizontal}
                       opacity={chartConfig.lineChart.grid.opacity}
                     />
-                    <XAxis
-                      dataKey='date'
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: '#A3AED0' }}
-                    />
+                    <XAxis {...xAxisConfig} />
                     <YAxis hide={true} />
                     <Tooltip
                       contentStyle={{
@@ -314,6 +376,15 @@ const Dashboard = () => {
                         borderRadius: '4px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                       }}
+                      formatter={(value) => [
+                        value,
+                        t('dashboard.charts.tokens.tooltip'),
+                      ]}
+                      labelFormatter={(label) =>
+                        `${t(
+                          'dashboard.statistics.tooltip.date'
+                        )}: ${formatDate(label)}`
+                      }
                     />
                     <Line
                       type='monotone'
@@ -334,7 +405,7 @@ const Dashboard = () => {
       {/* 模型使用统计 */}
       <Card fluid className='chart-card'>
         <Card.Content>
-          <Card.Header>统计</Card.Header>
+          <Card.Header>{t('dashboard.statistics.title')}</Card.Header>
           <div className='chart-container'>
             <ResponsiveContainer width='100%' height={300}>
               <BarChart data={modelData}>
@@ -343,12 +414,7 @@ const Dashboard = () => {
                   vertical={false}
                   opacity={0.1}
                 />
-                <XAxis
-                  dataKey='date'
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#A3AED0' }}
-                />
+                <XAxis {...xAxisConfig} />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
@@ -361,6 +427,11 @@ const Dashboard = () => {
                     borderRadius: '4px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                   }}
+                  labelFormatter={(label) =>
+                    `${t('dashboard.statistics.tooltip.date')}: ${formatDate(
+                      label
+                    )}`
+                  }
                 />
                 <Legend
                   wrapperStyle={{

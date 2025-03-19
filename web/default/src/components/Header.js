@@ -24,11 +24,6 @@ import '../index.css';
 // Header Buttons
 let headerButtons = [
   {
-    name: 'header.home',
-    to: '/',
-    icon: 'home',
-  },
-  {
     name: 'header.channel',
     to: '/channel',
     icon: 'sitemap',
@@ -170,7 +165,13 @@ const Header = () => {
               : { borderTop: 'none', height: '52px' }
           }
         >
-          <Container>
+          <Container
+            style={{
+              width: '100%',
+              maxWidth: isMobile() ? '100%' : '1200px',
+              padding: isMobile() ? '0 10px' : '0 20px',
+            }}
+          >
             <Menu.Item as={Link} to='/'>
               <img src={logo} alt='logo' style={{ marginRight: '0.75em' }} />
               <div style={{ fontSize: '20px' }}>
@@ -191,6 +192,12 @@ const Header = () => {
               <Menu.Item>
                 <Dropdown
                   selection
+                  trigger={
+                    <Icon
+                      name='language'
+                      style={{ margin: 0, fontSize: '18px' }}
+                    />
+                  }
                   options={languageOptions}
                   value={i18n.language}
                   onChange={(_, { value }) => changeLanguage(value)}
@@ -241,7 +248,13 @@ const Header = () => {
           border: 'none',
         }}
       >
-        <Container>
+        <Container
+          style={{
+            width: '100%',
+            maxWidth: isMobile() ? '100%' : '1200px',
+            padding: isMobile() ? '0 10px' : '0 20px',
+          }}
+        >
           <Menu.Item as={Link} to='/' className={'hide-on-mobile'}>
             <img src={logo} alt='logo' style={{ marginRight: '0.75em' }} />
             <div
@@ -258,13 +271,17 @@ const Header = () => {
           <Menu.Menu position='right'>
             <Dropdown
               item
+              trigger={
+                <Icon name='language' style={{ margin: 0, fontSize: '18px' }} />
+              }
               options={languageOptions}
               value={i18n.language}
               onChange={(_, { value }) => changeLanguage(value)}
               style={{
-                fontSize: '15px',
+                fontSize: '16px',
                 fontWeight: '400',
                 color: '#666',
+                padding: '0 10px',
               }}
             />
             {userState.user ? (

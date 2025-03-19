@@ -36,7 +36,7 @@
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04) !important;
     border: none !important;
     border-radius: 16px !important;
-    padding-top: 8px!important;
+    padding: 8px!important;
 }
 
 .chart-container {
@@ -91,15 +91,15 @@
 }
 
 .settings-tab .item {
-    color: #2B3674 !important;
+    color: #000 !important;
     font-weight: 500 !important;
     padding: 0.8rem 1.2rem !important;
 }
 
 .settings-tab .active.item {
-    color: #4318FF !important;
+    color: #000 !important;
     font-weight: 600 !important;
-    border-color: #4318FF !important;
+    border-color: #000 !important;
 }
 
 .ui.tab.segment {
