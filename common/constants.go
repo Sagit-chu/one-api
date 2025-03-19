@@ -1,3 +1,4 @@
+```go
 package common
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Configuration variables
 var StartTime = time.Now().Unix() // unit: second
 var Version = "v0.0.0"            // this hard coding will be replaced automatically when building, no need to manually change
 var SystemName = "One API"
@@ -21,16 +23,18 @@ var QuotaPerUnit = 500 * 1000.0 // $0.002 / 1K tokens
 var DisplayInCurrencyEnabled = true
 var DisplayTokenStatEnabled = true
 
-// Any options with "Secret", "Token" in its key won't be return by GetOptions
-
+// Sensitive configuration
 var SessionSecret = uuid.New().String()
 
+// Options Map
 var OptionMap map[string]string
 var OptionMapRWMutex sync.RWMutex
 
+// Pagination and limits
 var ItemsPerPage = 10
 var MaxRecentItems = 100
 
+// Authentication and authorization
 var PasswordLoginEnabled = true
 var PasswordRegisterEnabled = true
 var EmailVerificationEnabled = false
@@ -38,7 +42,6 @@ var GitHubOAuthEnabled = false
 var WeChatAuthEnabled = false
 var TurnstileCheckEnabled = false
 var RegisterEnabled = true
-
 var EmailDomainRestrictionEnabled = false
 var EmailDomainWhitelist = []string{
 	"gmail.com",
@@ -52,27 +55,36 @@ var EmailDomainWhitelist = []string{
 	"foxmail.com",
 }
 
+// Debugging
 var DebugEnabled = os.Getenv("DEBUG") == "true"
+
+// Caching
 var MemoryCacheEnabled = os.Getenv("MEMORY_CACHE_ENABLED") == "true"
 
+// Logging
 var LogConsumeEnabled = true
 
+// Email configuration
 var SMTPServer = ""
 var SMTPPort = 587
 var SMTPAccount = ""
 var SMTPFrom = ""
 var SMTPToken = ""
 
+// GitHub OAuth
 var GitHubClientId = ""
 var GitHubClientSecret = ""
 
+// WeChat integration
 var WeChatServerAddress = ""
 var WeChatServerToken = ""
 var WeChatAccountQRCodeImageURL = ""
 
+// Turnstile configuration
 var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
 
+// User quota and channel settings
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0
@@ -84,85 +96,52 @@ var ApproximateTokenEnabled = false
 var RetryTimes = 0
 var DefaultWeight = 10
 
+// Admin user
 var RootUserEmail = ""
 
+// Node settings
 var IsMasterNode = os.Getenv("NODE_TYPE") != "slave"
 
+// Polling configuration
 var requestInterval, _ = strconv.Atoi(os.Getenv("POLLING_INTERVAL"))
 var RequestInterval = time.Duration(requestInterval) * time.Second
 
+// Synchronization configuration
 var SyncFrequency = GetOrDefault("SYNC_FREQUENCY", 10*60) // unit is second
 
+// Batch update settings
 var BatchUpdateEnabled = false
 var BatchUpdateInterval = GetOrDefault("BATCH_UPDATE_INTERVAL", 5)
 
+// Relay settings
 var RelayTimeout = GetOrDefault("RELAY_TIMEOUT", 0) // unit is second
 
+// Constants
 const (
 	RequestIdKey = "X-Oneapi-Request-Id"
-)
 
-const (
 	RoleGuestUser  = 0
 	RoleCommonUser = 1
 	RoleAdminUser  = 10
 	RoleRootUser   = 100
-)
 
-var (
-	FileUploadPermission    = RoleGuestUser
-	FileDownloadPermission  = RoleGuestUser
-	ImageUploadPermission   = RoleGuestUser
-	ImageDownloadPermission = RoleGuestUser
-)
-
-// All duration's unit is seconds
-// Shouldn't larger then RateLimitKeyExpirationDuration
-var (
-	GlobalApiRateLimitNum            = GetOrDefault("GLOBAL_API_RATE_LIMIT", 180)
-	GlobalApiRateLimitDuration int64 = 3 * 60
-
-	GlobalWebRateLimitNum            = GetOrDefault("GLOBAL_WEB_RATE_LIMIT", 60)
-	GlobalWebRateLimitDuration int64 = 3 * 60
-
-	UploadRateLimitNum            = 10
-	UploadRateLimitDuration int64 = 60
-
-	DownloadRateLimitNum            = 10
-	DownloadRateLimitDuration int64 = 60
-
-	CriticalRateLimitNum            = 20
-	CriticalRateLimitDuration int64 = 20 * 60
-)
-
-var RateLimitKeyExpirationDuration = 20 * time.Minute
-
-const (
 	UserStatusEnabled  = 1 // don't use 0, 0 is the default value!
 	UserStatusDisabled = 2 // also don't use 0
-)
 
-const (
 	TokenStatusEnabled   = 1 // don't use 0, 0 is the default value!
 	TokenStatusDisabled  = 2 // also don't use 0
 	TokenStatusExpired   = 3
 	TokenStatusExhausted = 4
-)
 
-const (
 	RedemptionCodeStatusEnabled  = 1 // don't use 0, 0 is the default value!
 	RedemptionCodeStatusDisabled = 2 // also don't use 0
 	RedemptionCodeStatusUsed     = 3 // also don't use 0
-)
 
-const (
 	ChannelStatusUnknown          = 0
 	ChannelStatusEnabled          = 1 // don't use 0, 0 is the default value!
 	ChannelStatusManuallyDisabled = 2 // also don't use 0
 	ChannelStatusAutoDisabled     = 3
-)
 
-const (
 	ChannelTypeUnknown        = 0
 	ChannelTypeOpenAI         = 1
 	ChannelTypeAPI2D          = 2
@@ -189,6 +168,7 @@ const (
 	ChannelTypeTencent        = 23
 )
 
+// Channel base URLs
 var ChannelBaseURLs = []string{
 	"",                                  // 0
 	"https://api.openai.com",            // 1
@@ -213,5 +193,31 @@ var ChannelBaseURLs = []string{
 	"https://openrouter.ai/api",         // 20
 	"https://api.aiproxy.io",            // 21
 	"https://fastgpt.run/api/openapi",   // 22
-	"https://hunyuan.cloud.tencent.com", //23
+	"https://hunyuan.cloud.tencent.com", // 23
 }
+
+// Rate limits
+var (
+	FileUploadPermission    = RoleGuestUser
+	FileDownloadPermission  = RoleGuestUser
+	ImageUploadPermission   = RoleGuestUser
+	ImageDownloadPermission = RoleGuestUser
+
+	GlobalApiRateLimitNum            = GetOrDefault("GLOBAL_API_RATE_LIMIT", 180)
+	GlobalApiRateLimitDuration int64 = 3 * 60
+
+	GlobalWebRateLimitNum            = GetOrDefault("GLOBAL_WEB_RATE_LIMIT", 60)
+	GlobalWebRateLimitDuration int64 = 3 * 60
+
+	UploadRateLimitNum            = 10
+	UploadRateLimitDuration int64 = 60
+
+	DownloadRateLimitNum            = 10
+	DownloadRateLimitDuration int64 = 60
+
+	CriticalRateLimitNum            = 20
+	CriticalRateLimitDuration int64 = 20 * 60
+)
+
+var RateLimitKeyExpirationDuration = 20 * time.Minute
+```

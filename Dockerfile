@@ -1,33 +1,47 @@
-FROM node:16 as builder
+FROM --platform=$BUILDPLATFORM node:16 AS builder
 
-WORKDIR /build
-COPY web/package.json .
-RUN npm install
-COPY ./web .
+WORKDIR /web
 COPY ./VERSION .
-RUN DISABLE_ESLINT_PLUGIN='true' REACT_APP_VERSION=$(cat VERSION) npm run build
+COPY ./web .
 
-FROM golang AS builder2
+RUN npm install --prefix /web/default & \
+    npm install --prefix /web/berry & \
+    npm install --prefix /web/air & \
+    wait
+
+RUN DISABLE_ESLINT_PLUGIN='true' REACT_APP_VERSION=$(cat ./VERSION) npm run build --prefix /web/default & \
+    DISABLE_ESLINT_PLUGIN='true' REACT_APP_VERSION=$(cat ./VERSION) npm run build --prefix /web/berry & \
+    DISABLE_ESLINT_PLUGIN='true' REACT_APP_VERSION=$(cat ./VERSION) npm run build --prefix /web/air & \
+    wait
+
+FROM golang:alpine AS builder2
+
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    sqlite-dev \
+    build-base
 
 ENV GO111MODULE=on \
     CGO_ENABLED=1 \
     GOOS=linux
 
 WORKDIR /build
+
 ADD go.mod go.sum ./
 RUN go mod download
+
 COPY . .
-COPY --from=builder /build/build ./web/build
-RUN go build -ldflags "-s -w -X 'one-api/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-api
+COPY --from=builder /web/build ./web/build
 
-FROM alpine
+RUN go build -trimpath -ldflags "-s -w -X 'github.com/songquanpeng/one-api/common.Version=$(cat VERSION)' -linkmode external -extldflags '-static'" -o one-api
 
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache ca-certificates tzdata \
-    && update-ca-certificates 2>/dev/null || true
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder2 /build/one-api /
+
 EXPOSE 3000
 WORKDIR /data
 ENTRYPOINT ["/one-api"]

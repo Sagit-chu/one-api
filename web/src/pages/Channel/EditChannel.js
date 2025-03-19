@@ -1,3 +1,4 @@
+```javascript
 import React, { useEffect, useState } from 'react';
 import { Button, Form, Header, Input, Message, Segment } from 'semantic-ui-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,7 +18,6 @@ const WEIGHT_MAPPING_EXAMPLE = {
 };
 
 function type2secretPrompt(type) {
-  // inputs.type === 15 ? '按照如下格式输入：APIKey|SecretKey' : (inputs.type === 18 ? '按照如下格式输入：APPID|APISecret|APIKey' : '请输入渠道对应的鉴权密钥')
   switch (type) {
     case 15:
       return '按照如下格式输入：APIKey|SecretKey';
@@ -492,3 +492,4 @@ const EditChannel = () => {
 };
 
 export default EditChannel;
+```
