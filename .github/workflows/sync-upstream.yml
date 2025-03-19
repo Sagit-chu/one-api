@@ -22,8 +22,7 @@ jobs:
       - name: Sync upstream pull requests
         uses: actions/github-script@v6
         with:
-          token: ${{ secrets.PAT_TOKEN }}
-          # github-token: ${{ secrets.PAT_TOKEN }}
+          github-token: ${{ secrets.PAT_TOKEN }}
           script: |
             const upstream = 'songquanpeng/one-api';
             const [owner, repo] = upstream.split('/');
