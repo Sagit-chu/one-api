@@ -1,6 +1,9 @@
 package aws
 
-import "github.com/songquanpeng/one-api/relay/adaptor/anthropic"
+import (
+	"github.com/songquanpeng/one-api/relay/adaptor/anthropic"
+	"github.com/songquanpeng/one-api/relay/model"
+)
 
 // Request is the request to AWS Claude
 //
@@ -17,4 +20,5 @@ type Request struct {
 	StopSequences    []string            `json:"stop_sequences,omitempty"`
 	Tools            []anthropic.Tool    `json:"tools,omitempty"`
 	ToolChoice       any                 `json:"tool_choice,omitempty"`
+	Thinking         *model.Thinking     `json:"thinking,omitempty"`
 }
