@@ -1,14 +1,17 @@
 import os
 import openai
 import subprocess
+from openai import OpenAI
 
 # 读取环境变量
 api_key = os.getenv("OPENAI_API_KEY")
 base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")  # 允许自定义 API 地址
 
 # 配置 OpenAI
-openai.api_key = api_key
-openai.base_url = base_url  # 支持自定义 API 代理
+client = OpenAI(
+    api_key=api_key,
+    base_url=base_url
+)
 
 def get_conflicted_files():
     """ 获取所有冲突文件的列表 """
@@ -34,12 +37,12 @@ def resolve_conflict_with_ai(content):
     请输出合并后的完整代码，不要附加任何解释。
     """
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}]
     )
     
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content
 
 def apply_fix(file_path, fixed_content):
     """ 将 AI 解决的代码写回文件 """
