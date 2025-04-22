@@ -27,7 +27,7 @@ type Channel struct {
 	Priority           int           `json:"priority"`
 	Config             string        `json:"config"`
 	SystemPrompt       string        `json:"system_prompt"`
-	ChannelConfig      ChannelConfig `json:"channel_confi"`
+	ChannelConfig      ChannelConfig `json:"channel_config"`
 }
 
 type ChannelConfig struct {
