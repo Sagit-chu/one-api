@@ -162,8 +162,7 @@ func (channel *Channel) Get(client *OneClient) error {
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return err
 	}
-	channel = data.Data.(*Channel)
-	return nil
+	*channel = *(data.Data.(*Channel))
 }
 
 // test channel
