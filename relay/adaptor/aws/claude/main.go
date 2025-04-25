@@ -36,6 +36,7 @@ var AwsModelIDMap = map[string]string{
 	"claude-3-5-sonnet-20241022": "anthropic.claude-3-5-sonnet-20241022-v2:0",
 	"claude-3-5-sonnet-latest":   "anthropic.claude-3-5-sonnet-20241022-v2:0",
 	"claude-3-5-haiku-20241022":  "anthropic.claude-3-5-haiku-20241022-v1:0",
+	"claude-3-7-sonnet-20250219": "anthropic.claude-3-7-sonnet-20250219-v1:0",
 }
 
 func awsModelID(requestModel string) (string, error) {
@@ -47,13 +48,14 @@ func awsModelID(requestModel string) (string, error) {
 }
 
 func Handler(c *gin.Context, awsCli *bedrockruntime.Client, modelName string) (*relaymodel.ErrorWithStatusCode, *relaymodel.Usage) {
-	awsModelId, err := awsModelID(c.GetString(ctxkey.RequestModel))
+	awsModelID, err := awsModelID(c.GetString(ctxkey.RequestModel))
 	if err != nil {
 		return utils.WrapErr(errors.Wrap(err, "awsModelID")), nil
 	}
 
+	awsModelID = utils.ConvertModelID2CrossRegionProfile(awsModelID, awsCli.Options().Region)
 	awsReq := &bedrockruntime.InvokeModelInput{
-		ModelId:     aws.String(awsModelId),
+		ModelId:     aws.String(awsModelID),
 		Accept:      aws.String("application/json"),
 		ContentType: aws.String("application/json"),
 	}
@@ -101,13 +103,14 @@ func Handler(c *gin.Context, awsCli *bedrockruntime.Client, modelName string) (*
 
 func StreamHandler(c *gin.Context, awsCli *bedrockruntime.Client) (*relaymodel.ErrorWithStatusCode, *relaymodel.Usage) {
 	createdTime := helper.GetTimestamp()
-	awsModelId, err := awsModelID(c.GetString(ctxkey.RequestModel))
+	awsModelID, err := awsModelID(c.GetString(ctxkey.RequestModel))
 	if err != nil {
 		return utils.WrapErr(errors.Wrap(err, "awsModelID")), nil
 	}
 
+	awsModelID = utils.ConvertModelID2CrossRegionProfile(awsModelID, awsCli.Options().Region)
 	awsReq := &bedrockruntime.InvokeModelWithResponseStreamInput{
-		ModelId:     aws.String(awsModelId),
+		ModelId:     aws.String(awsModelID),
 		Accept:      aws.String("application/json"),
 		ContentType: aws.String("application/json"),
 	}

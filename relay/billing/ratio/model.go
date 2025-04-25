@@ -26,7 +26,7 @@ var modelRatioLock sync.RWMutex
 // 1 === ￥0.014 / 1k tokens
 var ModelRatio = map[string]float64{
 	// https://openai.com/pricing
-	"gpt-4":                   15,
+"gpt-4":                   15,
 	"gpt-4-0314":              15,
 	"gpt-4-0613":              15,
 	"gpt-4-32k":               30,
@@ -45,6 +45,11 @@ var ModelRatio = map[string]float64{
 	"gpt-4o-mini":             0.075, // $0.00015 / 1K tokens
 	"gpt-4o-mini-2024-07-18":  0.075, // $0.00015 / 1K tokens
 	"gpt-4-vision-preview":    5,     // $0.01 / 1K tokens
+	"gpt-4o-audio-preview":                 1.25,             // $0.0025 / 1K tokens
+	"gpt-4o-audio-preview-2024-12-17":      1.25,             // $0.0025 / 1K tokens
+	"gpt-4o-audio-preview-2024-10-01":      1.25,             // $0.0025 / 1K tokens
+	"gpt-4o-mini-audio-preview":            0.15 * MILLI_USD, // $0.15/1M tokens
+	"gpt-4o-mini-audio-preview-2024-12-17": 0.15 * MILLI_USD, // $0.15/1M tokens
 	"gpt-3.5-turbo":           0.25,  // $0.0005 / 1K tokens
 	"gpt-3.5-turbo-0301":      0.75,
 	"gpt-3.5-turbo-0613":      0.75,
@@ -59,8 +64,8 @@ var ModelRatio = map[string]float64{
 	"o1-preview-2024-09-12":   7.5,
 	"o1-mini":                 1.5, // $3.00 / 1M input tokens
 	"o1-mini-2024-09-12":      1.5,
-	"o3-mini":                 1.5, // $3.00 / 1M input tokens
-	"o3-mini-2025-01-31":      1.5,
+	"o3-mini":                 1.1 * MILLI_USD, // $1.10 / 1M input tokens
+	"o3-mini-2025-01-31":      1.1 * MILLI_USD,
 	"davinci-002":             1,   // $0.002 / 1K tokens
 	"babbage-002":             0.2, // $0.0004 / 1K tokens
 	"text-ada-001":            0.2,
@@ -86,8 +91,7 @@ var ModelRatio = map[string]float64{
 	"text-moderation-stable":  0.1,
 	"text-moderation-latest":  0.1,
 	"dall-e-2":                0.02 * USD, // $0.016 - $0.020 / image
-	"dall-e-3":                0.04 * USD, // $0.040 - $0.120 / image
-	// https://docs.anthropic.com/en/docs/about-claude/models
+	"dall-e-3":                0.04 * USD,  // $0.040 - $0.120 / image
 	"claude-instant-1.2":         0.8 / 1000 * USD,
 	"claude-2.0":                 8.0 / 1000 * USD,
 	"claude-2.1":                 8.0 / 1000 * USD,
@@ -98,6 +102,8 @@ var ModelRatio = map[string]float64{
 	"claude-3-5-sonnet-20240620": 3.0 / 1000 * USD,
 	"claude-3-5-sonnet-20241022": 3.0 / 1000 * USD,
 	"claude-3-5-sonnet-latest":   3.0 / 1000 * USD,
+	"claude-3-7-sonnet-20250219": 3.0 / 1000 * USD,
+	"claude-3-7-sonnet-latest":   3.0 / 1000 * USD,
 	"claude-3-opus-20240229":     15.0 / 1000 * USD,
 	// https://cloud.baidu.com/doc/WENXINWORKSHOP/s/hlrk4akp7
 	"ERNIE-4.0-8K":       0.120 * RMB,
@@ -621,6 +627,76 @@ var ModelRatio = map[string]float64{
 	"xwin-lm/xwin-lm-70b":                             1.875,
 }
 
+// AudioRatio represents the price ratio between audio tokens and text tokens
+var AudioRatio = map[string]float64{
+	"gpt-4o-audio-preview":                 16,
+	"gpt-4o-audio-preview-2024-12-17":      16,
+	"gpt-4o-audio-preview-2024-10-01":      40,
+	"gpt-4o-mini-audio-preview":            10 / 0.15,
+	"gpt-4o-mini-audio-preview-2024-12-17": 10 / 0.15,
+}
+
+// GetAudioPromptRatio returns the audio prompt ratio for the given model.
+func GetAudioPromptRatio(actualModelName string) float64 {
+	var v float64
+	if ratio, ok := AudioRatio[actualModelName]; ok {
+		v = ratio
+	} else {
+		v = 16
+	}
+
+	return v
+}
+
+// AudioCompletionRatio is the completion ratio for audio models.
+var AudioCompletionRatio = map[string]float64{
+	"whisper-1":                            0,
+	"gpt-4o-audio-preview":                 2,
+	"gpt-4o-audio-preview-2024-12-17":      2,
+	"gpt-4o-audio-preview-2024-10-01":      2,
+	"gpt-4o-mini-audio-preview":            2,
+	"gpt-4o-mini-audio-preview-2024-12-17": 2,
+}
+
+// GetAudioCompletionRatio returns the completion ratio for audio models.
+func GetAudioCompletionRatio(actualModelName string) float64 {
+	var v float64
+	if ratio, ok := AudioCompletionRatio[actualModelName]; ok {
+		v = ratio
+	} else {
+		v = 2
+	}
+
+	return v
+}
+
+// AudioTokensPerSecond is the number of audio tokens per second for each model.
+var AudioPromptTokensPerSecond = map[string]float64{
+	// Whisper API price is $0.0001/sec. One-api's historical ratio is 15,
+	// corresponding to $0.03/kilo_tokens.
+	// After conversion, tokens per second should be 0.0001/0.03*1000 = 3.3333.
+	"whisper-1": 0.0001 / 0.03 * 1000,
+	// gpt-4o-audio series processes 10 tokens per second
+	"gpt-4o-audio-preview":                 10,
+	"gpt-4o-audio-preview-2024-12-17":      10,
+	"gpt-4o-audio-preview-2024-10-01":      10,
+	"gpt-4o-mini-audio-preview":            10,
+	"gpt-4o-mini-audio-preview-2024-12-17": 10,
+}
+
+// GetAudioPromptTokensPerSecond returns the number of audio tokens per second
+// for the given model.
+func GetAudioPromptTokensPerSecond(actualModelName string) float64 {
+	var v float64
+	if tokensPerSecond, ok := AudioPromptTokensPerSecond[actualModelName]; ok {
+		v = tokensPerSecond
+	} else {
+		v = 10
+	}
+
+	return v
+}
+
 var CompletionRatio = map[string]float64{
 	// aws llama3
 	"llama3-8b-8192(33)":  0.0006 / 0.0003,
@@ -763,8 +839,9 @@ func GetCompletionRatio(name string, channelType int) float64 {
 		}
 		return 2
 	}
-	// including o1, o1-preview, o1-mini
-	if strings.HasPrefix(name, "o1") {
+	// including o1/o1-preview/o1-mini
+	if strings.HasPrefix(name, "o1") ||
+		strings.HasPrefix(name, "o3") {
 		return 4
 	}
 	if name == "chatgpt-4o-latest" {
