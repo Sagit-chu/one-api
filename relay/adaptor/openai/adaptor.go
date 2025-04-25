@@ -62,7 +62,8 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 		}
 
 		model_ := meta.ActualModelName
-		model_ = strings.Replace(model_, ".", "", -1)
+		// https://github.com/songquanpeng/one-api/issues/2235
+		// model_ = strings.Replace(model_, ".", "", -1)
 		//https://github.com/songquanpeng/one-api/issues/1191
 		// {your endpoint}/openai/deployments/{your azure_model}/chat/completions?api-version={api_version}
 		requestURL = fmt.Sprintf("/openai/deployments/%s/%s", model_, task)
