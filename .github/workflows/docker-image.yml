@@ -62,7 +62,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          platforms: ${{ contains(github.ref, 'alpha') && 'linux/amd64' || 'linux/amd64' }}
+          platforms: ${{ contains(github.ref, 'alpha') && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
