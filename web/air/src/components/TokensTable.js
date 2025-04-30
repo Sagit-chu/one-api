@@ -434,7 +434,7 @@ const TokensTable = () => {
     let res;
     switch (action) {
       case 'delete':
-        res = await API.delete(`/api/token/${id}/`);
+        res = await API.delete(`/api/token/${id}`);
         break;
       case 'enable':
         data.status = 1;
