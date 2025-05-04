@@ -1,8 +1,13 @@
 package model
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/env"
@@ -13,9 +18,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"os"
-	"strings"
-	"time"
 )
 
 var DB *gorm.DB
@@ -116,6 +118,11 @@ func InitDB() {
 		return
 	}
 
+	if config.DebugSQLEnabled {
+		logger.Debug(context.TODO(), "debug sql enabled")
+		DB = DB.Debug()
+	}
+
 	sqlDB := setDBConns(DB)
 
 	if !config.IsMasterNode {
@@ -201,10 +208,6 @@ func migrateLOGDB() error {
 }
 
 func setDBConns(db *gorm.DB) *sql.DB {
-	if config.DebugSQLEnabled {
-		db = db.Debug()
-	}
-
 	sqlDB, err := db.DB()
 	if err != nil {
 		logger.FatalLog("failed to connect database: " + err.Error())
