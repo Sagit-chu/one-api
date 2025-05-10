@@ -27,6 +27,8 @@ func StreamHandler(c *gin.Context, resp *http.Response, relayMode int) (*model.E
 	responseText := ""
 	reasoningText := ""
 	scanner := bufio.NewScanner(resp.Body)
+	buffer := make([]byte, 256*1024)
+	scanner.Buffer(buffer, len(buffer))
 	scanner.Split(bufio.ScanLines)
 	var usage *model.Usage
 
