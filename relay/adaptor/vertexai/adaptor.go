@@ -61,12 +61,15 @@ func (a *Adaptor) GetChannelName() string {
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	suffix := ""
-	if strings.HasPrefix(meta.ActualModelName, "gemini") {
+	modelType := PredictModelType(meta.ActualModelName)
+	if modelType == VertexAIGemini {
 		if meta.IsStream {
 			suffix = "streamGenerateContent?alt=sse"
 		} else {
 			suffix = "generateContent"
 		}
+	} else if modelType == VertexAIEmbedding {
+		suffix = "predict"
 	} else {
 		if meta.IsStream {
 			suffix = "streamRawPredict?alt=sse"
@@ -114,4 +117,14 @@ func (a *Adaptor) ConvertImageRequest(request *model.ImageRequest) (any, error) 
 
 func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Reader) (*http.Response, error) {
 	return channelhelper.DoRequestHelper(a, c, meta, requestBody)
+}
+
+func PredictModelType(model string) VertexAIModelType {
+	if strings.HasPrefix(model, "gemini-") {
+		return VertexAIGemini
+	}
+	if strings.HasPrefix(model, "text-embedding") || strings.HasPrefix(model, "text-multilingual-embedding") {
+		return VertexAIEmbedding
+	}
+	return VertexAIClaude
 }
