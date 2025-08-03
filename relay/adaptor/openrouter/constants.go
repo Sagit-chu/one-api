@@ -236,4 +236,7 @@ var ModelList = []string{
 	"undi95/toppy-m-7b",
 	"undi95/toppy-m-7b:free",
 	"xwin-lm/xwin-lm-70b",
+	"z-ai/glm-4.5",
+	"z-ai/glm-4.5-air",
+	"z-ai/glm-4.5-air:free",
 }
