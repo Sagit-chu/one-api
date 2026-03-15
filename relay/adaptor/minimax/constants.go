@@ -1,13 +1,15 @@
 package minimax
 
-// https://www.minimaxi.com/document/guides/chat-model/V2?id=65e0736ab2845de20908e2dd
+// https://platform.minimax.io/docs/api-reference/text-openai-api
 
 var ModelList = []string{
+	"MiniMax-M2.5",
+	"MiniMax-M2.5-highspeed",
+	"MiniMax-VL-01",
+	"MiniMax-Text-01",
 	"abab6.5-chat",
 	"abab6.5s-chat",
 	"abab6-chat",
 	"abab5.5-chat",
 	"abab5.5s-chat",
-	"MiniMax-VL-01",
-	"MiniMax-Text-01",
 }
